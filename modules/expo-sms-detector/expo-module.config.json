@@ -1,0 +1,8 @@
+{
+  "name": "expo-sms-detector",
+  "platforms": ["android"],
+  "android": {
+    "package": "com.pranay.spendwise.sms"
+  }
+}
+

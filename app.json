@@ -1,24 +1,43 @@
 {
   "expo": {
-    "name": "SpendwiseApp",
-    "slug": "SpendwiseApp",
-    "version": "1.0.0",
+    "name": "SpendWise",
+    "slug": "spendwise-expense-tracker",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
+    "primaryColor": "#059669",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.pranay.spendwise"
     },
     "android": {
+      "package": "com.pranay.spendwise",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      }
+        "backgroundColor": "#ffffff",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      },
+      "permissions": [
+        "android.permission.RECEIVE_SMS",
+        "android.permission.READ_SMS"
+      ]
     },
+    "plugins": [
+      "./plugins/withSmsDetector"
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "de0647aa-500a-4ea5-8876-39aa96d17ae2"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/de0647aa-500a-4ea5-8876-39aa96d17ae2"
     }
   }
 }

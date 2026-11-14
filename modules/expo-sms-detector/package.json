@@ -1,0 +1,8 @@
+{
+  "name": "expo-sms-detector",
+  "version": "1.0.0",
+  "description": "Native Android incoming SMS detection module for SpendWise",
+  "main": "index.js",
+  "types": "index.d.ts"
+}
+

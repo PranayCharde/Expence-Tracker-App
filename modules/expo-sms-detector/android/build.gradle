@@ -1,0 +1,34 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+group = 'com.pranay.spendwise.sms'
+version = '1.0.0'
+
+def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+apply from: expoModulesCorePlugin
+applyKotlinExpoModulesCorePlugin()
+
+def getExtOrDefault(name, defaultValue) {
+    return rootProject.ext.has(name) ? rootProject.ext.get(name) : defaultValue
+}
+
+android {
+    namespace "com.pranay.spendwise.sms"
+    compileSdkVersion getExtOrDefault("compileSdkVersion", 37)
+
+    defaultConfig {
+        minSdkVersion getExtOrDefault("minSdkVersion", 24)
+        targetSdkVersion getExtOrDefault("targetSdkVersion", 36)
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    lintOptions {
+        abortOnError false
+    }
+}
+
+dependencies {
+    implementation project(':expo-modules-core')
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
+}

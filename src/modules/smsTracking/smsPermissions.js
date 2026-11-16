@@ -1,5 +1,5 @@
 import { Platform, PermissionsAndroid, Alert } from 'react-native';
-import { safeGetItem, safeSetItem } from '../../utils/safeStorage';
+import { safeGetItem, safeSetItem } from '../../utils/safeStorage.js';
 
 const SMS_TRACKING_ENABLED_KEY = 'spendwise_sms_tracking_enabled';
 const SMS_PERMISSION_STATUS_KEY = 'spendwise_sms_permission_status';
@@ -94,7 +94,8 @@ export async function requestSmsPermissions(showRationaleDialog = true) {
  */
 export async function isSmsTrackingEnabled() {
   const value = await safeGetItem(SMS_TRACKING_ENABLED_KEY);
-  return value === 'true';
+  // Default to enabled (true) unless explicitly disabled by user in settings
+  return value !== 'false';
 }
 
 /**

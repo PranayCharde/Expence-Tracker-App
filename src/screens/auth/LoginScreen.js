@@ -12,11 +12,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react-native';
+import { sendPasswordResetEmail } from 'firebase/auth';
+import { auth } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
 import Logo from '../../components/common/Logo';
 import Button from '../../components/common/Button';
 import { colors } from '../../theme/colors';
+import { spacing, radius, layout, typography } from '../../theme/spacing';
 
 const LoginScreen = ({ navigation }) => {
   const { login } = useAuth();
@@ -26,6 +29,7 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
@@ -50,6 +54,28 @@ const LoginScreen = ({ navigation }) => {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      Alert.alert('Enter Email', 'Please enter your email address above to receive a password reset link.');
+      return;
+    }
+
+    setResetting(true);
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      Alert.alert('Reset Link Sent', `A password reset link has been sent to ${email.trim()}.`);
+    } catch (err) {
+      console.error("Reset password error:", err);
+      let msg = 'Could not send reset email. Please verify your email address.';
+      if (err.code === 'auth/user-not-found') {
+        msg = 'No user account found with this email.';
+      }
+      Alert.alert('Reset Failed', msg);
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const handleDemoFill = () => {
     setEmail('demo@spendwise.com');
     setPassword('Demo@1234');
@@ -61,10 +87,14 @@ const LoginScreen = ({ navigation }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent} 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Logo & Welcome */}
           <View style={styles.brandHeader}>
-            <Logo size={48} showText={true} textColor={themeColors.textPrimary} />
+            <Logo size={46} showText={true} textColor={themeColors.textPrimary} />
             <Text style={[styles.title, { color: themeColors.textPrimary }]}>Welcome back</Text>
             <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
               Sign in to manage your budget and physical cash
@@ -92,7 +122,15 @@ const LoginScreen = ({ navigation }) => {
 
             {/* Password Field */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: themeColors.textSecondary }]}>Password</Text>
+              <View style={styles.labelRow}>
+                <Text style={[styles.label, { color: themeColors.textSecondary }]}>Password</Text>
+                <TouchableOpacity 
+                  onPress={handleForgotPassword}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                >
+                  <Text style={styles.forgotText}>Forgot password?</Text>
+                </TouchableOpacity>
+              </View>
               <View style={[styles.inputBox, { borderColor: themeColors.border, backgroundColor: themeColors.surface }]}>
                 <Lock size={18} color={themeColors.textMuted} style={styles.inputIcon} />
                 <TextInput
@@ -103,7 +141,11 @@ const LoginScreen = ({ navigation }) => {
                   secureTextEntry={!showPassword}
                   style={[styles.input, { color: themeColors.textPrimary }]}
                 />
-                <TouchableOpacity onPress={() => setShowPassword(p => !p)} style={styles.eyeBtn}>
+                <TouchableOpacity 
+                  onPress={() => setShowPassword(p => !p)} 
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  style={styles.eyeBtn}
+                >
                   {showPassword ? (
                     <EyeOff size={18} color={themeColors.textMuted} />
                   ) : (
@@ -122,11 +164,15 @@ const LoginScreen = ({ navigation }) => {
               loading={loading}
               icon={ArrowRight}
               iconPosition="right"
-              style={{ marginTop: 8 }}
+              style={{ marginTop: spacing.xs }}
             />
 
             {/* Demo Account Button */}
-            <TouchableOpacity onPress={handleDemoFill} style={styles.demoBtn}>
+            <TouchableOpacity 
+              onPress={handleDemoFill} 
+              style={styles.demoBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
+            >
               <Text style={styles.demoBtnText}>Auto-fill Demo Account</Text>
             </TouchableOpacity>
           </View>
@@ -136,7 +182,7 @@ const LoginScreen = ({ navigation }) => {
             <Text style={[styles.footerText, { color: themeColors.textSecondary }]}>
               Don't have an account?{' '}
             </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Signup')}>
+            <TouchableOpacity onPress={() => navigation.navigate('Signup')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={styles.signupLink}>Sign Up</Text>
             </TouchableOpacity>
           </View>
@@ -155,66 +201,80 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 36,
-    paddingBottom: 24,
+    paddingHorizontal: layout.screenPaddingHorizontal,
+    paddingTop: spacing.xxl,
+    paddingBottom: spacing.xl,
     justifyContent: 'space-between',
   },
   brandHeader: {
     alignItems: 'center',
-    gap: 10,
-    marginTop: 20,
-    marginBottom: 32,
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    marginBottom: spacing.xxl,
   },
   title: {
-    fontSize: 26,
+    fontSize: typography.fontSizes.heading,
     fontWeight: '900',
     letterSpacing: -0.5,
-    marginTop: 12,
+    marginTop: spacing.sm,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: typography.fontSizes.body,
     fontWeight: '500',
     textAlign: 'center',
-    maxWidth: 280,
+    maxWidth: 290,
+    lineHeight: 20,
   },
   form: {
-    gap: 18,
+    gap: spacing.lg,
   },
   inputGroup: {
-    gap: 6,
+    gap: spacing.xs + 2,
+  },
+  labelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   label: {
-    fontSize: 12,
+    fontSize: typography.fontSizes.sub,
     fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  forgotText: {
+    fontSize: typography.fontSizes.sub,
+    fontWeight: '700',
+    color: colors.primary,
   },
   inputBox: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    height: 54,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.lg,
+    height: layout.inputHeight,
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   input: {
     flex: 1,
-    fontSize: 15,
+    fontSize: typography.fontSizes.bodyLg,
     fontWeight: '600',
+    padding: 0,
   },
   eyeBtn: {
-    padding: 6,
+    padding: spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   demoBtn: {
     alignSelf: 'center',
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
   },
   demoBtnText: {
-    fontSize: 13,
+    fontSize: typography.fontSizes.bodySm,
     fontWeight: '800',
     color: colors.primary,
   },
@@ -222,15 +282,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 32,
-    marginBottom: 12,
+    marginTop: spacing.xxl,
+    marginBottom: spacing.sm,
   },
   footerText: {
-    fontSize: 14,
+    fontSize: typography.fontSizes.body,
     fontWeight: '500',
   },
   signupLink: {
-    fontSize: 14,
+    fontSize: typography.fontSizes.body,
     fontWeight: '900',
     color: colors.primary,
   },

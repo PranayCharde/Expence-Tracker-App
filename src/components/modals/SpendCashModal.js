@@ -56,7 +56,7 @@ const SpendCashModal = ({
   onSuccess 
 }) => {
   const { user } = useAuth();
-  const { symbol, formatCurrency, themeColors } = useSettings();
+  const { symbol, formatCurrency, themeColors, isDarkMode } = useSettings();
 
   const [inputMode, setInputMode] = useState('notes'); // 'notes' or 'direct'
   const [directAmount, setDirectAmount] = useState('');
@@ -280,7 +280,20 @@ const SpendCashModal = ({
 
             {/* Notes Selector */}
             {inputMode === 'notes' ? (
-              <View style={styles.billsGrid}>
+              <View style={{ gap: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={{ fontSize: 13, fontWeight: '900', color: themeColors.textPrimary }}>
+                    {mode === 'expense' ? 'Select Notes You Gave' : 'Select Notes You Received'}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setSelectedNotes({ 500: '', 200: '', 100: '', 50: '', 20: '', 10: '', coins: '' })}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 6, paddingVertical: 2 }}
+                  >
+                    <RotateCcw size={12} color="#ef4444" />
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: '#ef4444' }}>Clear</Text>
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.billsGrid}>
                 {INDIAN_DENOMINATIONS.map(note => {
                   const available = parseInt(currentDenominations?.[note.value], 10) || 0;
                   const picked = selectedNotes[note.value] ?? '';
@@ -342,6 +355,7 @@ const SpendCashModal = ({
                   />
                 </View>
               </View>
+            </View>
             ) : (
               <View style={styles.directInputBox}>
                 <Text style={[styles.label, { color: themeColors.textSecondary }]}>Amount</Text>
@@ -366,15 +380,20 @@ const SpendCashModal = ({
                     <TouchableOpacity
                       key={cat}
                       onPress={() => setCategory(cat)}
+                      activeOpacity={0.7}
                       style={[
                         styles.categoryChip,
-                        { borderColor: isSelected ? colors.primary : themeColors.border },
-                        isSelected && { backgroundColor: colors.primary }
+                        { 
+                          borderColor: isSelected ? colors.primary : themeColors.border,
+                          backgroundColor: isSelected 
+                            ? colors.primary 
+                            : (isDarkMode ? themeColors.surfaceSubtle : '#f8fafc')
+                        }
                       ]}
                     >
                       <Text style={[
                         styles.categoryChipText,
-                        { color: isSelected ? '#ffffff' : themeColors.textSecondary },
+                        { color: isSelected ? '#ffffff' : themeColors.textPrimary },
                         isSelected && { fontWeight: '900' }
                       ]}>
                         {cat}

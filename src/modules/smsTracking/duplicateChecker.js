@@ -5,8 +5,8 @@
  */
 
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
-import { db } from '../../config/firebase';
-import { safeGetItem, safeSetItem } from '../../utils/safeStorage';
+import { db } from '../../config/firebase.js';
+import { safeGetItem, safeSetItem } from '../../utils/safeStorage.js';
 
 const PROCESSED_CACHE_KEY = 'spendwise_processed_sms_cache';
 const MAX_CACHE_ENTRIES = 200;

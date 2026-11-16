@@ -41,8 +41,7 @@ const withSmsDetector = (config) => {
         application.receiver.push({
           $: {
             'android:name': receiverName,
-            'android:exported': 'true',
-            'android:permission': 'android.permission.BROADCAST_SMS'
+            'android:exported': 'true'
           },
           'intent-filter': [
             {

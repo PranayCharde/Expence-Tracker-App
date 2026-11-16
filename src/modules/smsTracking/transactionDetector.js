@@ -54,14 +54,15 @@ const PROMO_KEYWORDS = [
 
 // Financial action keywords (Debit & Credit)
 const FINANCIAL_ACTION_PATTERNS = [
-  /\b(?:debited|spent|paid|withdrawn|debited\s+by|sent|purchase)\b/i,
+  /\b(?:debited|spent|paid|withdrawn|withdrawal|debited\s+by|sent|purchase|used\s+for|was\s+used)\b/i,
   /\b(?:credited|received|deposited|refund|refunded|reversal|reversed|salary|added|processed)\b/i,
   /\b(?:dr\.?|cr\.?)\b/i,
   /\bupi\b/i,
   /\bimps\b/i,
   /\bneft\b/i,
   /\brtgs\b/i,
-  /\batm\s*(?:wdl|withdrawal)\b/i
+  /\b(?:atm|cash)\s*(?:wdl|withdrawal)\b/i,
+  /\bwithdrawal\b/i
 ];
 
 // Currency indicators

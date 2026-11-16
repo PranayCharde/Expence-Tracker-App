@@ -54,10 +54,28 @@ export function addSmsListener(listener) {
   return { remove: () => {} };
 }
 
+/**
+ * Retrieve recent SMS messages from inbox
+ * @param {number} limit
+ * @returns {Promise<Array<{ sender: string, body: string, timestamp: number }>>}
+ */
+export async function getRecentSms(limit = 20) {
+  if (ExpoSmsDetector && ExpoSmsDetector.getRecentSms) {
+    try {
+      return await ExpoSmsDetector.getRecentSms(limit);
+    } catch (e) {
+      console.warn('[expo-sms-detector] Error retrieving recent SMS:', e?.message);
+      return [];
+    }
+  }
+  return [];
+}
+
 export default {
   isSmsDetectorAvailable,
   startSmsListener,
   stopSmsListener,
   addSmsListener,
+  getRecentSms,
 };
 

@@ -2,7 +2,10 @@
   "name": "expo-sms-detector",
   "platforms": ["android"],
   "android": {
-    "package": "com.pranay.spendwise.sms"
+    "package": "com.pranay.spendwise.sms",
+    "modules": [
+      "com.pranay.spendwise.sms.ExpoSmsDetectorModule"
+    ]
   }
 }
 

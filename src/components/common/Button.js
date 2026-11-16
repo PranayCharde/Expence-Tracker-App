@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, View } from 'react-native';
 import { colors } from '../../theme/colors';
+import { radius, layout, spacing } from '../../theme/spacing';
 
 const Button = ({
   title,
@@ -38,18 +39,33 @@ const Button = ({
     }
   };
 
-  const getPadding = () => {
+  const getPaddingAndHeight = () => {
     switch (size) {
-      case 'sm': return { paddingVertical: 8, paddingHorizontal: 12 };
-      case 'lg': return { paddingVertical: 16, paddingHorizontal: 24 };
-      default: return { paddingVertical: 12, paddingHorizontal: 18 };
+      case 'sm': 
+        return { 
+          minHeight: layout.buttonHeightSm, 
+          paddingVertical: spacing.xs + 2, 
+          paddingHorizontal: spacing.md 
+        };
+      case 'lg': 
+        return { 
+          minHeight: layout.buttonHeightLg, 
+          paddingVertical: spacing.md + 2, 
+          paddingHorizontal: spacing.xxl 
+        };
+      default: 
+        return { 
+          minHeight: layout.buttonHeight, 
+          paddingVertical: spacing.sm + 2, 
+          paddingHorizontal: spacing.lg 
+        };
     }
   };
 
   const getFontSize = () => {
     switch (size) {
       case 'sm': return 12;
-      case 'lg': return 16;
+      case 'lg': return 15;
       default: return 14;
     }
   };
@@ -61,7 +77,7 @@ const Button = ({
       disabled={disabled || loading}
       style={[
         styles.button,
-        getPadding(),
+        getPaddingAndHeight(),
         { backgroundColor: getBackgroundColor() },
         variant === 'outline' && { borderWidth: 1.5, borderColor: colors.primary },
         style
@@ -72,17 +88,20 @@ const Button = ({
       ) : (
         <View style={styles.content}>
           {Icon && iconPosition === 'left' && (
-            <Icon size={getFontSize() + 2} color={getTextColor()} style={styles.iconLeft} />
+            <Icon size={getFontSize() + 3} color={getTextColor()} style={styles.iconLeft} />
           )}
-          <Text style={[
-            styles.text,
-            { color: getTextColor(), fontSize: getFontSize() },
-            textStyle
-          ]}>
+          <Text 
+            numberOfLines={1}
+            style={[
+              styles.text,
+              { color: getTextColor(), fontSize: getFontSize() },
+              textStyle
+            ]}
+          >
             {title}
           </Text>
           {Icon && iconPosition === 'right' && (
-            <Icon size={getFontSize() + 2} color={getTextColor()} style={styles.iconRight} />
+            <Icon size={getFontSize() + 3} color={getTextColor()} style={styles.iconRight} />
           )}
         </View>
       )}
@@ -92,7 +111,7 @@ const Button = ({
 
 const styles = StyleSheet.create({
   button: {
-    borderRadius: 16,
+    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -105,12 +124,13 @@ const styles = StyleSheet.create({
   text: {
     fontWeight: '800',
     letterSpacing: -0.2,
+    textAlign: 'center',
   },
   iconLeft: {
-    marginRight: 8,
+    marginRight: spacing.sm,
   },
   iconRight: {
-    marginLeft: 8,
+    marginLeft: spacing.sm,
   },
 });
 

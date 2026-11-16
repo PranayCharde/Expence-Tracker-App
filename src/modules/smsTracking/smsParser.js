@@ -57,19 +57,23 @@ function identifyBank(sender = '', body = '') {
  * Extract transaction amount
  */
 function extractAmount(body) {
-  // Common patterns:
-  // "debited by Rs 500.00", "Rs. 1,500.00 debited", "INR 2000.50 credited", "withdrawn Rs 5000"
+  // 1. Strip available balance / limit expressions so balance is NEVER mistaken for transaction amount
+  const cleanedBody = body.replace(
+    /(?:avl(?:\.?|\s+bal(?:ance)?)?|avail(?:\.?|\s+bal(?:ance)?)?|available\s+balance|avl\s+lmt|available\s+limit|bal(?:ance)?)\s*:?\s*(?:rs\.?|inr|₹)?\s*[\d,]+(?:\.\d{1,2})?/gi,
+    ''
+  );
+
   const amountPatterns = [
-    // Matches "Rs. 500.00", "INR 1,200", "₹ 450"
-    /(?:rs\.?|inr|₹)\s*([0-9]{1,3}(?:,[0-9]{2,3})*(?:\.[0-9]{1,2})?)/i,
-    // Matches "500.00 Rs" or "1,200 INR"
-    /([0-9]{1,3}(?:,[0-9]{2,3})*(?:\.[0-9]{1,2})?)\s*(?:rs\.?|inr|₹)/i,
-    // Matches "debited/credited ... 500.00"
-    /(?:debited|credited|withdrawn|refunded|spent|paid)\s+(?:by|for|of)?\s*(?:rs\.?|inr|₹)?\s*([0-9]{1,3}(?:,[0-9]{2,3})*(?:\.[0-9]{1,2})?)/i
+    // Matches transaction action amounts (e.g., "debited by 350.00", "credited with Rs 75,000.00", "spent INR 1,499.00", "withdrawal of Rs. 4,000.00", "used for INR 1,499.00")
+    /(?:debited|credited|withdrawn|spent|paid|refunded|refund|transferred|sent|withdrawal\s+of|used\s+for|purchase\s+of)\s+(?:by|for|of|with)?\s*(?:rs\.?|inr|₹)?\s*([0-9]+(?:,[0-9]+)*(?:\.[0-9]{1,2})?)/i,
+    // Matches explicit currency prefixes (e.g., "Rs. 500.00", "INR 1,200", "₹ 450")
+    /(?:rs\.?|inr|₹)\s*([0-9]+(?:,[0-9]+)*(?:\.[0-9]{1,2})?)/i,
+    // Matches explicit currency postfixes (e.g., "500.00 Rs" or "1,200 INR")
+    /([0-9]+(?:,[0-9]+)*(?:\.[0-9]{1,2})?)\s*(?:rs\.?|inr|₹)/i
   ];
 
   for (const regex of amountPatterns) {
-    const match = body.match(regex);
+    const match = cleanedBody.match(regex);
     if (match && match[1]) {
       const rawNum = match[1].replace(/,/g, '');
       const parsed = parseFloat(rawNum);
@@ -89,11 +93,16 @@ function extractAmount(body) {
 function extractType(body) {
   const lower = body.toLowerCase();
 
+  // 1. Direct card spend check (e.g., "Credit Card was used for...", "Card spent")
+  if (/(?:credit\s*card|debit\s*card|card)\s+.*?\b(?:used\s+for|was\s+used|spent|paid|purchase|debited)\b/i.test(lower)) {
+    return 'debit';
+  }
+
   // Credit indicators (takes priority if refund/reversal/salary)
   const creditKeywords = [
     'credited',
     'credited to',
-    'credit',
+    'credit of',
     'refund',
     'refunded',
     'reversal',
@@ -114,6 +123,9 @@ function extractType(body) {
     'paid',
     'sent',
     'withdrawn',
+    'withdrawal',
+    'used for',
+    'was used',
     'purchase',
     'dr.'
   ];
@@ -149,7 +161,7 @@ function extractPaymentMethod(body) {
   if (/\b(?:upi|vpa|gpay|phonepe|paytm)\b/i.test(lower)) {
     return 'Online / UPI';
   }
-  if (/\b(?:neft|imps|rtgs|net\s*banking|transfer)\b/i.test(lower)) {
+  if (/\b(?:neft|imps|rtgs|net\s*banking|transfer|salary\s*credit|payroll)\b/i.test(lower)) {
     return 'Bank Transfer';
   }
 

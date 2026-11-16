@@ -12,6 +12,7 @@ import { CURRENCIES } from '../../config/constants';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import { colors } from '../../theme/colors';
+import { spacing, radius, layout, typography } from '../../theme/spacing';
 import { sendInstantNotification, scheduleDailyWalletReminder, cancelDailyReminder } from '../../services/notificationService';
 import { 
   checkSmsPermissions, 
@@ -22,7 +23,8 @@ import {
   subscribeToSmsTrackingUpdates,
   startSmsTrackingService,
   stopSmsTrackingService,
-  processRawSms 
+  processRawSms,
+  syncRecentSms
 } from '../../modules/smsTracking';
 
 const SettingsScreen = () => {
@@ -46,6 +48,7 @@ const SettingsScreen = () => {
   const [totalDetected, setTotalDetected] = useState(0);
   const [lastDetected, setLastDetected] = useState(null);
   const [simulating, setSimulating] = useState(false);
+  const [syncingInbox, setSyncingInbox] = useState(false);
 
   useEffect(() => {
     loadSmsSettings();
@@ -120,6 +123,25 @@ const SettingsScreen = () => {
     setSmsPermissionStatus(result === 'granted' ? 'granted' : 'denied');
     if (result === 'granted' && smsTrackingActive && user) {
       startSmsTrackingService(user);
+    }
+  };
+
+  const handleSyncInbox = async () => {
+    if (!user) {
+      Alert.alert('Authentication Required', 'Please log in to sync SMS transactions.');
+      return;
+    }
+    setSyncingInbox(true);
+    try {
+      const res = await syncRecentSms(user, 30);
+      Alert.alert(
+        'Inbox Scan Complete',
+        `Scanned ${res.checked} messages from your SMS inbox.\n\nLogged ${res.synced} new transaction(s) to your account.`
+      );
+    } catch (e) {
+      Alert.alert('Scan Failed', 'Could not read SMS inbox: ' + e?.message);
+    } finally {
+      setSyncingInbox(false);
     }
   };
 
@@ -396,6 +418,18 @@ const SettingsScreen = () => {
                 <Text style={[styles.simBtnText, { color: '#475569' }]}>OTP Filter</Text>
               </TouchableOpacity>
             </View>
+
+            {/* Scan Recent SMS from Device Inbox */}
+            <TouchableOpacity
+              style={[styles.syncInboxBtn, { backgroundColor: themeColors.surface, borderColor: themeColors.border }]}
+              disabled={syncingInbox}
+              onPress={handleSyncInbox}
+            >
+              <Smartphone size={15} color={colors.primary} />
+              <Text style={[styles.syncInboxBtnText, { color: themeColors.textPrimary }]}>
+                {syncingInbox ? 'Scanning Recent SMS Messages...' : 'Scan Device SMS Inbox for Past Transactions'}
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -447,8 +481,10 @@ const SettingsScreen = () => {
                     onPress={() => updateCurrency(c.code)}
                     style={[
                       styles.currencyPill,
-                      { borderColor: isSelected ? colors.primary : themeColors.border },
-                      isSelected && { backgroundColor: colors.primaryMuted }
+                      { 
+                        borderColor: isSelected ? colors.primary : themeColors.border,
+                        backgroundColor: isSelected ? colors.primaryMuted : (isDarkMode ? themeColors.surfaceSubtle : '#ffffff')
+                      }
                     ]}
                   >
                     <Text style={[
@@ -560,10 +596,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 40,
-    gap: 18,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: layout.scrollBottomInset,
+    gap: spacing.lg,
   },
   header: {
     gap: 2,
@@ -846,6 +882,20 @@ const styles = StyleSheet.create({
   },
   testNotifBtnText: {
     fontSize: 13,
+    fontWeight: '800',
+  },
+  syncInboxBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderWidth: 1,
+    paddingVertical: 12,
+    borderRadius: 16,
+    marginTop: 10,
+  },
+  syncInboxBtnText: {
+    fontSize: 12,
     fontWeight: '800',
   },
   logoutBtn: {

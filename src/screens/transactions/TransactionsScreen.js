@@ -30,6 +30,8 @@ import Badge from '../../components/common/Badge';
 import NewTransactionModal from '../../components/modals/NewTransactionModal';
 import TransactionDetailModal from '../../components/modals/TransactionDetailModal';
 import { colors } from '../../theme/colors';
+import { spacing, radius, layout, typography } from '../../theme/spacing';
+import { formatTransactionDate } from '../../utils/formatDate';
 
 const TransactionsScreen = () => {
   const { user } = useAuth();
@@ -47,6 +49,7 @@ const TransactionsScreen = () => {
   // Modals
   const [newTxModalOpen, setNewTxModalOpen] = useState(false);
   const [selectedTx, setSelectedTx] = useState(null);
+  const [editingTx, setEditingTx] = useState(null);
 
   useEffect(() => {
     if (!user) return;
@@ -59,12 +62,10 @@ const TransactionsScreen = () => {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list = snapshot.docs.map(doc => {
         const data = doc.data();
-        let jsDate = new Date();
-        if (data.date) jsDate = new Date(data.date);
         return {
           id: doc.id,
           ...data,
-          dateStr: jsDate.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })
+          dateStr: formatTransactionDate(data.date || data.createdAt)
         };
       });
 
@@ -224,7 +225,7 @@ const TransactionsScreen = () => {
                       )}
                     </View>
 
-                    <View style={{ flex: 1 }}>
+                    <View style={styles.txContent}>
                       <Text style={[styles.txTitle, { color: themeColors.textPrimary }]} numberOfLines={1}>
                         {tx.description || tx.category}
                       </Text>
@@ -248,12 +249,14 @@ const TransactionsScreen = () => {
                     </View>
                   </View>
 
-                  <Text style={[
-                    styles.txAmount,
-                    { color: isIncome ? colors.success : colors.danger }
-                  ]}>
-                    {formatCurrency(tx.amount, { showSign: true })}
-                  </Text>
+                  <View style={styles.txRight}>
+                    <Text style={[
+                      styles.txAmount,
+                      { color: isIncome ? colors.success : colors.danger }
+                    ]}>
+                      {formatCurrency(tx.amount, { showSign: true })}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               );
             })}
@@ -273,13 +276,22 @@ const TransactionsScreen = () => {
       {/* Modals */}
       <NewTransactionModal
         visible={newTxModalOpen}
-        onClose={() => setNewTxModalOpen(false)}
+        onClose={() => {
+          setNewTxModalOpen(false);
+          setEditingTx(null);
+        }}
+        initialTransaction={editingTx}
       />
 
       <TransactionDetailModal
         visible={!!selectedTx}
         onClose={() => setSelectedTx(null)}
         transaction={selectedTx}
+        onEdit={(tx) => {
+          setSelectedTx(null);
+          setEditingTx(tx);
+          setNewTxModalOpen(true);
+        }}
       />
     </SafeAreaView>
   );
@@ -367,70 +379,89 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   listContent: {
-    paddingHorizontal: 20,
-    paddingBottom: 110,
-    gap: 12,
+    paddingHorizontal: layout.screenPaddingHorizontal,
+    paddingTop: spacing.xs,
+    paddingBottom: layout.scrollBottomInset + 30,
+    gap: spacing.md,
   },
   countHeader: {
-    fontSize: 12,
+    fontSize: typography.fontSizes.sub,
     fontWeight: '700',
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   txList: {
-    gap: 10,
+    gap: spacing.sm,
   },
   txCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 14,
-    borderRadius: 20,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.xl,
     borderWidth: 1,
+    minHeight: 72,
   },
   txLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
     flex: 1,
+    minWidth: 0,
+    marginRight: spacing.sm,
   },
   txIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+    width: 42,
+    height: 42,
+    borderRadius: radius.md,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  txContent: {
+    flex: 1,
+    minWidth: 0,
     justifyContent: 'center',
   },
   txTitle: {
-    fontSize: 14,
+    fontSize: typography.fontSizes.body,
     fontWeight: '800',
   },
   txMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.xs,
     marginTop: 4,
     flexWrap: 'wrap',
   },
   txDate: {
-    fontSize: 11,
-    color: '#94a3b8',
-    fontWeight: '600',
+    fontSize: typography.fontSizes.caption,
+    color: '#64748b',
+    fontWeight: '700',
   },
   notesTag: {
-    fontSize: 10,
+    fontSize: typography.fontSizes.micro,
     fontWeight: '800',
     color: '#065f46',
     backgroundColor: '#d1fae5',
     alignSelf: 'flex-start',
     paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: 6,
-    marginTop: 4,
+    paddingVertical: 2,
+    borderRadius: radius.xs,
+    marginTop: spacing.xs,
+    maxWidth: '90%',
+  },
+  txRight: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    flexShrink: 0,
+    minWidth: 84,
+    paddingLeft: spacing.xs,
   },
   txAmount: {
-    fontSize: 15,
+    fontSize: typography.fontSizes.bodyLg,
     fontWeight: '900',
-    marginLeft: 8,
+    textAlign: 'right',
   },
   emptyBox: {
     alignItems: 'center',
@@ -449,7 +480,7 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: 24,
+    bottom: layout.fabBottomOffset,
     right: 20,
     width: 56,
     height: 56,

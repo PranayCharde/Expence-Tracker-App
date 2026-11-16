@@ -20,19 +20,23 @@ export const registerForPushNotificationsAsync = async () => {
   let token = null;
 
   if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('spendwise_alerts', {
-      name: 'SpendWise Alerts',
-      importance: Notifications.AndroidImportance.HIGH,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#059669',
-      sound: 'default',
-    });
+    try {
+      await Notifications.setNotificationChannelAsync('spendwise_alerts', {
+        name: 'SpendWise Alerts',
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#059669',
+        enableVibrate: true,
+      });
 
-    await Notifications.setNotificationChannelAsync('spendwise_reminders', {
-      name: 'SpendWise Daily Reminders',
-      importance: Notifications.AndroidImportance.DEFAULT,
-      sound: 'default',
-    });
+      await Notifications.setNotificationChannelAsync('spendwise_reminders', {
+        name: 'SpendWise Daily Reminders',
+        importance: Notifications.AndroidImportance.DEFAULT,
+        enableVibrate: true,
+      });
+    } catch (channelErr) {
+      console.log('[NotificationService] Android notification channel setup skipped:', channelErr?.message);
+    }
   }
 
   if (Device.isDevice || Platform.OS === 'web') {
@@ -121,18 +125,20 @@ export const scheduleDailyWalletReminder = async (hour = 21, minute = 0) => {
     // Cancel existing reminder first to prevent duplicates
     await cancelDailyReminder();
 
+    const triggerInput = {
+      type: Notifications.SchedulableTriggerInputTypes?.DAILY || 'daily',
+      hour,
+      minute,
+      channelId: 'spendwise_reminders',
+    };
+
     await Notifications.scheduleNotificationAsync({
       content: {
         title: '💼 SpendWise Daily Wallet Check',
         body: "Take 10 seconds to recount your physical wallet & log today's cash transactions!",
-        sound: 'default',
         channelId: 'spendwise_reminders',
       },
-      trigger: {
-        hour,
-        minute,
-        repeats: true,
-      },
+      trigger: triggerInput,
     });
   } catch (err) {
     console.warn('Failed to schedule daily reminder:', err);

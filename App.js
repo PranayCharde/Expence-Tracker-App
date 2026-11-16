@@ -1,11 +1,18 @@
 import React, { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { registerForPushNotificationsAsync, scheduleDailyWalletReminder } from './src/services/notificationService';
-import { startSmsTrackingService, stopSmsTrackingService } from './src/modules/smsTracking';
+import { 
+  startSmsTrackingService, 
+  stopSmsTrackingService, 
+  checkSmsPermissions, 
+  requestSmsPermissions,
+  syncRecentSms
+} from './src/modules/smsTracking';
 
 const RootContent = () => {
   const { isDarkMode } = useSettings();
@@ -19,7 +26,24 @@ const RootContent = () => {
 
   useEffect(() => {
     if (user) {
-      startSmsTrackingService(user);
+      if (Platform.OS === 'android') {
+        checkSmsPermissions().then(hasPerm => {
+          if (!hasPerm) {
+            // Prompt user with rationale to enable automatic tracking
+            requestSmsPermissions(true).then((res) => {
+              if (res === 'granted') {
+                startSmsTrackingService(user);
+                syncRecentSms(user, 25);
+              }
+            });
+          } else {
+            startSmsTrackingService(user);
+            syncRecentSms(user, 25);
+          }
+        });
+      } else {
+        startSmsTrackingService(user);
+      }
     } else {
       stopSmsTrackingService();
     }

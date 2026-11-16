@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { colors } from '../../theme/colors';
+import { radius, spacing } from '../../theme/spacing';
 
 const Badge = ({ text, variant = 'default', style, textStyle }) => {
   const getBadgeColors = () => {
@@ -26,7 +27,10 @@ const Badge = ({ text, variant = 'default', style, textStyle }) => {
 
   return (
     <View style={[styles.badge, { backgroundColor: currentColors.bg }, style]}>
-      <Text style={[styles.text, { color: currentColors.text }, textStyle]}>
+      <Text 
+        numberOfLines={1} 
+        style={[styles.text, { color: currentColors.text }, textStyle]}
+      >
         {text}
       </Text>
     </View>
@@ -37,13 +41,17 @@ const styles = StyleSheet.create({
   badge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     alignSelf: 'flex-start',
+    justifyContent: 'center',
+    alignItems: 'center',
+    maxWidth: 160,
   },
   text: {
     fontSize: 11,
     fontWeight: '800',
     letterSpacing: -0.1,
+    textAlign: 'center',
   },
 });
 

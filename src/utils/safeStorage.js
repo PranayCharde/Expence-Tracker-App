@@ -76,5 +76,9 @@ export const safeStorage = {
   }
 };
 
+export const safeGetItem = (key) => safeStorage.getItem(key);
+export const safeSetItem = (key, value) => safeStorage.setItem(key, value);
+export const safeRemoveItem = (key) => safeStorage.removeItem(key);
+
 export default safeStorage;
 

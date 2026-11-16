@@ -76,16 +76,20 @@ const INCOME_KEYWORD_RULES = [
     keywords: ['salary', 'payroll', 'wages', 'stipend', 'bonus']
   },
   {
-    category: 'Investments',
-    keywords: ['dividend', 'zerodha', 'groww', 'upstox', 'mutual fund', 'interest', 'fd', 'rd']
+    category: 'Refund',
+    keywords: ['refund', 'refunded', 'reversal', 'reversed', 'cashback']
+  },
+  {
+    category: 'Received from Friend',
+    keywords: ['transfer from', 'received from', 'sent to you', 'p2a']
+  },
+  {
+    category: 'Investment',
+    keywords: ['dividend', 'zerodha', 'groww', 'upstox', 'mutual fund', 'interest', 'fixed deposit', 'recurring deposit']
   },
   {
     category: 'Freelance',
     keywords: ['upwork', 'fiverr', 'consulting', 'freelance', 'contract']
-  },
-  {
-    category: 'Gifts',
-    keywords: ['gift', 'reward', 'cashback', 'refund', 'reversal']
   }
 ];
 
@@ -97,6 +101,11 @@ const INCOME_KEYWORD_RULES = [
 export function categorizeTransaction(parsedTransaction) {
   const { type, merchant = '', rawSender = '', rawBody = '' } = parsedTransaction;
   const targetText = `${merchant} ${rawSender} ${rawBody}`.toLowerCase();
+
+  // Special check for ATM cash withdrawal (both debit/credit messages from ATM)
+  if (/\batm\b|cash\s*withdrawal/i.test(targetText)) {
+    return 'ATM Withdrawal';
+  }
 
   if (type === 'income' || type === 'credit') {
     for (const rule of INCOME_KEYWORD_RULES) {

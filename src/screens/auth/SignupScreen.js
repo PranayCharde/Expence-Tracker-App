@@ -17,6 +17,7 @@ import { useSettings } from '../../context/SettingsContext';
 import Logo from '../../components/common/Logo';
 import Button from '../../components/common/Button';
 import { colors } from '../../theme/colors';
+import { spacing, radius, layout, typography } from '../../theme/spacing';
 
 const SignupScreen = ({ navigation }) => {
   const { signup } = useAuth();
@@ -68,7 +69,11 @@ const SignupScreen = ({ navigation }) => {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboardView}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent} 
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
           {/* Brand Header */}
           <View style={styles.brandHeader}>
             <Logo size={44} showText={true} textColor={themeColors.textPrimary} />
@@ -125,7 +130,11 @@ const SignupScreen = ({ navigation }) => {
                   secureTextEntry={!showPassword}
                   style={[styles.input, { color: themeColors.textPrimary }]}
                 />
-                <TouchableOpacity onPress={() => setShowPassword(p => !p)} style={styles.eyeBtn}>
+                <TouchableOpacity 
+                  onPress={() => setShowPassword(p => !p)} 
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  style={styles.eyeBtn}
+                >
                   {showPassword ? (
                     <EyeOff size={18} color={themeColors.textMuted} />
                   ) : (
@@ -160,7 +169,7 @@ const SignupScreen = ({ navigation }) => {
               loading={loading}
               icon={ArrowRight}
               iconPosition="right"
-              style={{ marginTop: 8 }}
+              style={{ marginTop: spacing.xs }}
             />
           </View>
 
@@ -169,7 +178,7 @@ const SignupScreen = ({ navigation }) => {
             <Text style={[styles.footerText, { color: themeColors.textSecondary }]}>
               Already have an account?{' '}
             </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+            <TouchableOpacity onPress={() => navigation.navigate('Login')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Text style={styles.signupLink}>Sign In</Text>
             </TouchableOpacity>
           </View>
@@ -188,37 +197,38 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 30,
-    paddingBottom: 24,
+    paddingHorizontal: layout.screenPaddingHorizontal,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.xl,
     justifyContent: 'space-between',
   },
   brandHeader: {
     alignItems: 'center',
-    gap: 8,
-    marginTop: 10,
-    marginBottom: 24,
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xl,
   },
   title: {
-    fontSize: 26,
+    fontSize: typography.fontSizes.heading,
     fontWeight: '900',
     letterSpacing: -0.5,
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: typography.fontSizes.body,
     fontWeight: '500',
     textAlign: 'center',
-    maxWidth: 280,
+    maxWidth: 290,
+    lineHeight: 20,
   },
   form: {
-    gap: 16,
+    gap: spacing.md + 2,
   },
   inputGroup: {
-    gap: 6,
+    gap: spacing.xs + 2,
   },
   label: {
-    fontSize: 12,
+    fontSize: typography.fontSizes.sub,
     fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -227,34 +237,37 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    height: 52,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.lg,
+    height: layout.inputHeight,
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   input: {
     flex: 1,
-    fontSize: 15,
+    fontSize: typography.fontSizes.bodyLg,
     fontWeight: '600',
+    padding: 0,
   },
   eyeBtn: {
-    padding: 6,
+    padding: spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 28,
-    marginBottom: 8,
+    marginTop: spacing.xxl,
+    marginBottom: spacing.sm,
   },
   footerText: {
-    fontSize: 14,
+    fontSize: typography.fontSizes.body,
     fontWeight: '500',
   },
   signupLink: {
-    fontSize: 14,
+    fontSize: typography.fontSizes.body,
     fontWeight: '900',
     color: colors.primary,
   },

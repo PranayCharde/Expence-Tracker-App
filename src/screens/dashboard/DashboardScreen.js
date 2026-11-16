@@ -23,7 +23,7 @@ import {
   User,
   PieChart as PieChartIcon
 } from 'lucide-react-native';
-import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, doc, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
@@ -34,6 +34,8 @@ import NewTransactionModal from '../../components/modals/NewTransactionModal';
 import SpendCashModal from '../../components/modals/SpendCashModal';
 import TransactionDetailModal from '../../components/modals/TransactionDetailModal';
 import { colors } from '../../theme/colors';
+import { spacing, radius, layout, typography } from '../../theme/spacing';
+import { formatTransactionDate } from '../../utils/formatDate';
 
 const DashboardScreen = ({ navigation }) => {
   const { user } = useAuth();
@@ -50,6 +52,7 @@ const DashboardScreen = ({ navigation }) => {
   const [spendCashModalOpen, setSpendCashModalOpen] = useState(false);
   const [spendCashMode, setSpendCashMode] = useState('expense');
   const [selectedTx, setSelectedTx] = useState(null);
+  const [editingTx, setEditingTx] = useState(null);
 
   // Physical wallet data from user profile
   const [walletData, setWalletData] = useState({ amount: 0, denominations: {} });
@@ -66,12 +69,10 @@ const DashboardScreen = ({ navigation }) => {
     const unsubTx = onSnapshot(q, (snapshot) => {
       const list = snapshot.docs.map(doc => {
         const data = doc.data();
-        let jsDate = new Date();
-        if (data.date) jsDate = new Date(data.date);
         return {
           id: doc.id,
           ...data,
-          dateStr: jsDate.toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })
+          dateStr: formatTransactionDate(data.date || data.createdAt)
         };
       });
       setTransactions(list);
@@ -81,10 +82,8 @@ const DashboardScreen = ({ navigation }) => {
       setLoading(false);
     });
 
-    // Listen to user profile for wallet denominations
-    const unsubUser = onSnapshot(collection(db, 'users'), (snapshot) => {
-      // Find currentUser
-      const userDoc = snapshot.docs.find(d => d.id === user.uid);
+    // Listen to user profile for wallet denominations (isolated document)
+    const unsubUser = onSnapshot(doc(db, 'users', user.uid), (userDoc) => {
       if (userDoc && userDoc.exists()) {
         const data = userDoc.data();
         if (data.physicalWallet) {
@@ -110,25 +109,29 @@ const DashboardScreen = ({ navigation }) => {
     };
   }, [user]);
 
-  // Financial Stats Calculation
+  // Financial Stats Calculation (Strict ATM & Cash Accounting)
   const stats = useMemo(() => {
+    // Real Income: Excludes ATM withdrawals (which are account transfers, not new income)
     const totalIncome = transactions
-      .filter(t => t.amount > 0)
+      .filter(t => t.amount > 0 && t.category !== 'ATM Withdrawal')
       .reduce((sum, t) => sum + t.amount, 0);
 
+    // Real Expenses: Excludes ATM withdrawals (which convert bank balance to cash, not spend)
     const totalExpense = transactions
-      .filter(t => t.amount < 0)
+      .filter(t => t.amount < 0 && t.category !== 'ATM Withdrawal')
       .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
     const totalBalance = totalIncome - totalExpense;
 
-    // Physical Cash Balance
+    // Physical Cash Balance:
+    // Cash In: Positive cash transactions OR ATM withdrawals that put cash into wallet
     const cashIn = transactions
-      .filter(t => t.paymentMethod === 'Cash' && t.amount > 0)
-      .reduce((sum, t) => sum + t.amount, 0);
+      .filter(t => (t.paymentMethod === 'Cash' && t.amount > 0) || t.category === 'ATM Withdrawal')
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
+    // Cash Out: Negative cash expenses (excluding ATM transfers)
     const cashOut = transactions
-      .filter(t => t.paymentMethod === 'Cash' && t.amount < 0)
+      .filter(t => t.paymentMethod === 'Cash' && t.amount < 0 && t.category !== 'ATM Withdrawal')
       .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
     const cashBalance = cashIn - cashOut;
@@ -329,7 +332,7 @@ const DashboardScreen = ({ navigation }) => {
                         <CreditCard size={18} color="#64748b" />
                       )}
                     </View>
-                    <View style={{ flex: 1 }}>
+                    <View style={styles.txContent}>
                       <Text style={[styles.txDescription, { color: themeColors.textPrimary }]} numberOfLines={1}>
                         {tx.description || tx.category}
                       </Text>
@@ -347,12 +350,14 @@ const DashboardScreen = ({ navigation }) => {
                     </View>
                   </View>
 
-                  <Text style={[
-                    styles.txAmount,
-                    { color: isIncome ? colors.success : colors.danger }
-                  ]}>
-                    {formatCurrency(tx.amount, { showSign: true })}
-                  </Text>
+                  <View style={styles.txRight}>
+                    <Text style={[
+                      styles.txAmount,
+                      { color: isIncome ? colors.success : colors.danger }
+                    ]}>
+                      {formatCurrency(tx.amount, { showSign: true })}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               );
             })}
@@ -363,8 +368,12 @@ const DashboardScreen = ({ navigation }) => {
       {/* Modals */}
       <NewTransactionModal
         visible={newTxModalOpen}
-        onClose={() => setNewTxModalOpen(false)}
+        onClose={() => {
+          setNewTxModalOpen(false);
+          setEditingTx(null);
+        }}
         defaultType={newTxType}
+        initialTransaction={editingTx}
       />
 
       <SpendCashModal
@@ -379,6 +388,11 @@ const DashboardScreen = ({ navigation }) => {
         visible={!!selectedTx}
         onClose={() => setSelectedTx(null)}
         transaction={selectedTx}
+        onEdit={(tx) => {
+          setSelectedTx(null);
+          setEditingTx(tx);
+          setNewTxModalOpen(true);
+        }}
       />
     </SafeAreaView>
   );
@@ -635,42 +649,60 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 14,
-    borderRadius: 20,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.xl,
     borderWidth: 1,
+    minHeight: 70,
   },
   txLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
     flex: 1,
+    minWidth: 0,
+    marginRight: spacing.sm,
   },
   txIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+    width: 42,
+    height: 42,
+    borderRadius: radius.md,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  txContent: {
+    flex: 1,
+    minWidth: 0,
     justifyContent: 'center',
   },
   txDescription: {
-    fontSize: 14,
+    fontSize: typography.fontSizes.body,
     fontWeight: '800',
   },
   txMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 3,
+    gap: spacing.xs,
+    marginTop: 4,
+    flexWrap: 'wrap',
   },
   txDate: {
-    fontSize: 11,
-    color: '#94a3b8',
-    fontWeight: '600',
+    fontSize: typography.fontSizes.caption,
+    color: '#64748b',
+    fontWeight: '700',
+  },
+  txRight: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    flexShrink: 0,
+    minWidth: 84,
+    paddingLeft: spacing.xs,
   },
   txAmount: {
-    fontSize: 15,
+    fontSize: typography.fontSizes.bodyLg,
     fontWeight: '900',
-    marginLeft: 8,
+    textAlign: 'right',
   },
   emptyCard: {
     alignItems: 'center',

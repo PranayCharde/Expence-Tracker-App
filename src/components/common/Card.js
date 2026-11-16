@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useSettings } from '../../context/SettingsContext';
+import { radius, layout } from '../../theme/spacing';
 
 const Card = ({ children, style, variant = 'default' }) => {
   const { themeColors, isDarkMode } = useSettings();
@@ -22,9 +23,9 @@ const Card = ({ children, style, variant = 'default' }) => {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 24,
+    borderRadius: radius.xl,
     borderWidth: 1,
-    padding: 16,
+    padding: layout.cardPadding,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,

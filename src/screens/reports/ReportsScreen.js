@@ -22,6 +22,7 @@ import { useSettings } from '../../context/SettingsContext';
 import Card from '../../components/common/Card';
 import Badge from '../../components/common/Badge';
 import { colors } from '../../theme/colors';
+import { spacing, radius, layout, typography } from '../../theme/spacing';
 
 const ReportsScreen = () => {
   const { user } = useAuth();
@@ -43,11 +44,13 @@ const ReportsScreen = () => {
 
   // Analytics Math
   const analytics = useMemo(() => {
+    // Real Income: Excludes internal transfers (ATM withdrawals)
     const totalIncome = transactions
-      .filter(t => t.amount > 0)
+      .filter(t => t.amount > 0 && t.category !== 'ATM Withdrawal')
       .reduce((sum, t) => sum + t.amount, 0);
 
-    const expenses = transactions.filter(t => t.amount < 0);
+    // Real Expenses: Excludes internal transfers (ATM withdrawals)
+    const expenses = transactions.filter(t => t.amount < 0 && t.category !== 'ATM Withdrawal');
     const totalExpense = expenses.reduce((sum, t) => sum + Math.abs(t.amount), 0);
     const netSavings = totalIncome - totalExpense;
     const savingsRate = totalIncome > 0 ? Math.max(0, Math.round((netSavings / totalIncome) * 100)) : 0;
@@ -107,12 +110,12 @@ const ReportsScreen = () => {
               <Text style={styles.savingsLabel}>Monthly Savings Rate</Text>
               <Text style={[styles.savingsRateText, { color: colors.primary }]}>{analytics.savingsRate}%</Text>
             </View>
-            <View style={styles.savingsIconCircle}>
+            <View style={[styles.savingsIconCircle, { backgroundColor: isDarkMode ? 'rgba(5, 150, 105, 0.2)' : '#ecfdf5' }]}>
               <TrendingUp size={24} color={colors.primary} />
             </View>
           </View>
 
-          <View style={styles.savingsProgressTrack}>
+          <View style={[styles.savingsProgressTrack, { backgroundColor: isDarkMode ? '#334155' : '#f1f5f9' }]}>
             <View style={[styles.savingsProgressBar, { width: `${Math.min(100, analytics.savingsRate)}%` }]} />
           </View>
 
@@ -183,7 +186,7 @@ const ReportsScreen = () => {
                       <Text style={styles.catPercentage}>({cat.percentage}%)</Text>
                     </View>
                   </View>
-                  <View style={styles.catProgressTrack}>
+                  <View style={[styles.catProgressTrack, { backgroundColor: isDarkMode ? '#334155' : '#f1f5f9' }]}>
                     <View style={[styles.catProgressBar, { width: `${cat.percentage}%` }]} />
                   </View>
                 </View>
@@ -201,10 +204,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 110,
-    gap: 16,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: layout.scrollBottomInset,
+    gap: spacing.md,
   },
   header: {
     gap: 2,

@@ -7,7 +7,9 @@ import {
   TouchableOpacity, 
   TextInput,
   Modal,
-  Alert 
+  Alert,
+  KeyboardAvoidingView,
+  Platform 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, Target, AlertTriangle, CheckCircle, Trash2, X } from 'lucide-react-native';
@@ -20,6 +22,7 @@ import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import Badge from '../../components/common/Badge';
 import { colors } from '../../theme/colors';
+import { spacing, radius, layout, typography } from '../../theme/spacing';
 
 const BudgetsScreen = () => {
   const { user } = useAuth();
@@ -63,7 +66,7 @@ const BudgetsScreen = () => {
   const categorySpentMap = useMemo(() => {
     const map = {};
     transactions
-      .filter(t => t.amount < 0)
+      .filter(t => t.amount < 0 && t.category !== 'ATM Withdrawal')
       .forEach(t => {
         const cat = t.category || 'Other';
         map[cat] = (map[cat] || 0) + Math.abs(t.amount);
@@ -250,18 +253,34 @@ const BudgetsScreen = () => {
 
       {/* Add Budget Modal */}
       <Modal visible={addModalOpen} animationType="slide" transparent={true} onRequestClose={() => setAddModalOpen(false)}>
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+          style={styles.modalOverlay}
+        >
           <View style={[styles.modalBox, { backgroundColor: themeColors.surface }]}>
-            <View style={styles.modalHeader}>
+            <View style={[styles.modalHeader, { borderBottomColor: themeColors.border }]}>
               <Text style={[styles.modalTitle, { color: themeColors.textPrimary }]}>Create Category Budget</Text>
-              <TouchableOpacity onPress={() => setAddModalOpen(false)}>
+              <TouchableOpacity 
+                onPress={() => setAddModalOpen(false)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={styles.closeBtn}
+              >
                 <X size={20} color={themeColors.textSecondary} />
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalBody}>
+            <ScrollView 
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={{ paddingVertical: spacing.md }}
+            >
               <Text style={[styles.modalLabel, { color: themeColors.textSecondary }]}>Select Category</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryPillsRow}>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false} 
+                contentContainerStyle={styles.categoryPillsRow}
+                keyboardShouldPersistTaps="handled"
+              >
                 {EXPENSE_CATEGORIES.map(cat => {
                   const isSelected = selectedCategory === cat;
                   return (
@@ -270,11 +289,13 @@ const BudgetsScreen = () => {
                       onPress={() => setSelectedCategory(cat)}
                       style={[
                         styles.catPill,
-                        { borderColor: isSelected ? colors.primary : themeColors.border },
-                        isSelected && { backgroundColor: colors.primary }
+                        { 
+                          borderColor: isSelected ? colors.primary : themeColors.border,
+                          backgroundColor: isSelected ? colors.primary : (isDarkMode ? themeColors.surfaceSubtle : '#ffffff')
+                        }
                       ]}
                     >
-                      <Text style={[styles.catPillText, { color: isSelected ? '#ffffff' : themeColors.textSecondary }]}>
+                      <Text style={[styles.catPillText, { color: isSelected ? '#ffffff' : themeColors.textSecondary }, isSelected && { fontWeight: '900' }]}>
                         {cat}
                       </Text>
                     </TouchableOpacity>
@@ -282,17 +303,25 @@ const BudgetsScreen = () => {
                 })}
               </ScrollView>
 
-              <Text style={[styles.modalLabel, { color: themeColors.textSecondary, marginTop: 14 }]}>Monthly Limit ({symbol})</Text>
+              <Text style={[styles.modalLabel, { color: themeColors.textSecondary, marginTop: spacing.lg }]}>
+                Monthly Limit ({symbol})
+              </Text>
               <TextInput
                 value={budgetLimit}
                 onChangeText={setBudgetLimit}
                 placeholder="e.g. 5000"
                 placeholderTextColor={themeColors.textMuted}
                 keyboardType="decimal-pad"
-                style={[styles.modalInput, { borderColor: themeColors.border, color: themeColors.textPrimary }]}
-                autoFocus
+                style={[
+                  styles.modalInput, 
+                  { 
+                    borderColor: themeColors.border, 
+                    backgroundColor: themeColors.surfaceSubtle,
+                    color: themeColors.textPrimary 
+                  }
+                ]}
               />
-            </View>
+            </ScrollView>
 
             <View style={styles.modalFooter}>
               <Button
@@ -310,7 +339,7 @@ const BudgetsScreen = () => {
               />
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
@@ -491,6 +520,10 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 17,
     fontWeight: '900',
+  },
+  closeBtn: {
+    padding: 6,
+    borderRadius: 12,
   },
   modalBody: {
     paddingVertical: 16,

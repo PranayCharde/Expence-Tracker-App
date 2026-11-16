@@ -4,17 +4,17 @@
  */
 
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../../config/firebase';
-import { safeGetItem, safeSetItem } from '../../utils/safeStorage';
-import { notifyTransaction } from '../../services/notificationService';
-import { isSmsDetectorAvailable, addSmsListener, startSmsListener, stopSmsListener } from '../../../modules/expo-sms-detector';
+import { db } from '../../config/firebase.js';
+import { safeGetItem, safeSetItem } from '../../utils/safeStorage.js';
+import { notifyTransaction } from '../../services/notificationService.js';
+import { isSmsDetectorAvailable, addSmsListener, startSmsListener, stopSmsListener, getRecentSms } from '../../../modules/expo-sms-detector/index.js';
 
-import { isFinancialSms } from './transactionDetector';
-import { parseSms } from './smsParser';
-import { validateTransaction } from './transactionValidator';
-import { isDuplicate, markProcessed } from './duplicateChecker';
-import { categorizeTransaction } from './transactionCategorizer';
-import { checkSmsPermissions, isSmsTrackingEnabled } from './smsPermissions';
+import { isFinancialSms } from './transactionDetector.js';
+import { parseSms } from './smsParser.js';
+import { validateTransaction } from './transactionValidator.js';
+import { isDuplicate, markProcessed } from './duplicateChecker.js';
+import { categorizeTransaction } from './transactionCategorizer.js';
+import { checkSmsPermissions, isSmsTrackingEnabled } from './smsPermissions.js';
 
 const LAST_DETECTED_TX_KEY = 'spendwise_last_sms_tx';
 const TOTAL_DETECTED_COUNT_KEY = 'spendwise_total_sms_detected_count';
@@ -218,11 +218,47 @@ export function stopSmsTrackingService() {
   console.log('[SmsService] Automatic SMS tracking service stopped.');
 }
 
+/**
+ * Scan recent SMS messages from device inbox (e.g. on app launch or refresh)
+ * Catches any transactions that arrived while the app was closed.
+ * @param {object} user - Active Firebase user
+ * @param {number} limit - Number of recent SMS messages to scan
+ * @returns {Promise<{ synced: number, checked: number }>}
+ */
+export async function syncRecentSms(user = currentUser, limit = 25) {
+  if (!user || !user.uid) return { synced: 0, checked: 0 };
+
+  const isEnabled = await isSmsTrackingEnabled();
+  if (!isEnabled) return { synced: 0, checked: 0 };
+
+  const hasPerm = await checkSmsPermissions();
+  if (!hasPerm) return { synced: 0, checked: 0 };
+
+  try {
+    const messages = await getRecentSms(limit);
+    let count = 0;
+    for (const msg of messages) {
+      if (msg.body) {
+        const result = await processRawSms(msg.body, msg.sender || '', msg.timestamp || Date.now(), user);
+        if (result.success) {
+          count++;
+        }
+      }
+    }
+    console.log(`[SmsService] Inbox sync complete: ${count} new transactions logged out of ${messages.length} checked.`);
+    return { synced: count, checked: messages.length };
+  } catch (err) {
+    console.warn('[SmsService] Error during inbox SMS sync:', err);
+    return { synced: 0, checked: 0 };
+  }
+}
+
 export default {
   startSmsTrackingService,
   stopSmsTrackingService,
   processRawSms,
   getSmsTrackingStats,
-  subscribeToSmsTrackingUpdates
+  subscribeToSmsTrackingUpdates,
+  syncRecentSms
 };
 

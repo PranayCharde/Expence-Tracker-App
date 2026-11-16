@@ -28,7 +28,7 @@ const testCases = [
     expectedEligible: true,
     expectedAmount: 2000,
     expectedType: 'credit',
-    expectedCategory: 'Other',
+    expectedCategory: 'Received from Friend',
     expectedMethod: 'Online / UPI'
   },
   {

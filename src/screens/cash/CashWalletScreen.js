@@ -102,7 +102,7 @@ const CashWalletScreen = () => {
         };
       });
 
-      const cashOnly = list.filter(t => t.paymentMethod === 'Cash');
+      const cashOnly = list.filter(t => t.paymentMethod === 'Cash' || t.category === 'ATM Withdrawal');
       setTransactions(cashOnly);
       setLoading(false);
     });
@@ -130,12 +130,14 @@ const CashWalletScreen = () => {
 
   // Ledger stats
   const stats = useMemo(() => {
+    // Cash In: Cash inflow or ATM cash withdrawal into physical wallet
     const cashIn = transactions
-      .filter(t => t.amount > 0)
-      .reduce((sum, t) => sum + t.amount, 0);
+      .filter(t => (t.amount > 0 && t.paymentMethod === 'Cash') || t.category === 'ATM Withdrawal')
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
+    // Cash Out: Cash spent from physical wallet
     const cashOut = transactions
-      .filter(t => t.amount < 0)
+      .filter(t => t.amount < 0 && t.category !== 'ATM Withdrawal')
       .reduce((sum, t) => sum + Math.abs(t.amount), 0);
 
     const cashBalance = cashIn - cashOut;
@@ -351,26 +353,28 @@ const CashWalletScreen = () => {
             {/* Inputs: Exact Cash & Wallet Label */}
             <View style={styles.recountInputsRow}>
               <View style={styles.recountInputCol}>
-                <Text style={styles.inputFieldLabel}>Exact Cash Currently in Wallet</Text>
-                <View style={styles.amountInputWrap}>
-                  <Text style={styles.amountPrefix}>{symbol}</Text>
+                <Text style={[styles.inputFieldLabel, { color: themeColors.textSecondary }]}>Exact Cash Currently in Wallet</Text>
+                <View style={[styles.amountInputWrap, { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.border }]}>
+                  <Text style={[styles.amountPrefix, { color: themeColors.textSecondary }]}>{symbol}</Text>
                   <TextInput
                     value={recountAmount}
                     onChangeText={(txt) => setRecountAmount(txt)}
                     placeholder="710"
+                    placeholderTextColor={themeColors.textMuted}
                     keyboardType="numeric"
-                    style={styles.amountInputField}
+                    style={[styles.amountInputField, { color: themeColors.textPrimary }]}
                   />
                 </View>
               </View>
 
               <View style={styles.recountInputCol}>
-                <Text style={styles.inputFieldLabel}>Wallet Label (Optional)</Text>
+                <Text style={[styles.inputFieldLabel, { color: themeColors.textSecondary }]}>Wallet Label (Optional)</Text>
                 <TextInput
                   value={walletLabel}
                   onChangeText={(txt) => setWalletLabel(txt)}
                   placeholder="e.g. Pocket wallet, cash drawer"
-                  style={styles.labelInputField}
+                  placeholderTextColor={themeColors.textMuted}
+                  style={[styles.labelInputField, { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.border, color: themeColors.textPrimary }]}
                 />
               </View>
             </View>
@@ -393,9 +397,9 @@ const CashWalletScreen = () => {
 
             {/* Bill Counter Grid */}
             {showBillCounter && (
-              <View style={styles.billCounterContainer}>
-                <View style={styles.billCounterHeaderRow}>
-                  <Text style={styles.billCounterTitle}>Count Individual Notes</Text>
+              <View style={[styles.billCounterContainer, { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.border }]}>
+                <View style={[styles.billCounterHeaderRow, { borderBottomColor: themeColors.border }]}>
+                  <Text style={[styles.billCounterTitle, { color: themeColors.textPrimary }]}>Count Individual Notes</Text>
                   <TouchableOpacity onPress={handleResetRecountDenominations} style={styles.resetBtn}>
                     <RotateCcw size={12} color="#94a3b8" />
                     <Text style={styles.resetBtnText}>Reset</Text>

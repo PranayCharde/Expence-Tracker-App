@@ -19,7 +19,8 @@ import {
   Smartphone, 
   TrendingUp, 
   CreditCard,
-  FileText 
+  FileText,
+  ChevronRight 
 } from 'lucide-react-native';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -33,7 +34,7 @@ import { colors } from '../../theme/colors';
 import { spacing, radius, layout, typography } from '../../theme/spacing';
 import { formatTransactionDate } from '../../utils/formatDate';
 
-const TransactionsScreen = () => {
+const TransactionsScreen = ({ navigation }) => {
   const { user } = useAuth();
   const { formatCurrency, themeColors, isDarkMode } = useSettings();
 
@@ -43,7 +44,7 @@ const TransactionsScreen = () => {
 
   // Filters & Search
   const [searchTerm, setSearchTerm] = useState('');
-  const [methodFilter, setMethodFilter] = useState('all'); // 'all', 'Cash', 'Online'
+  const [methodFilter, setMethodFilter] = useState('all'); // 'all', 'sms', 'Cash', 'Online'
   const [typeFilter, setTypeFilter] = useState('all'); // 'all', 'income', 'expense'
 
   // Modals
@@ -81,11 +82,15 @@ const TransactionsScreen = () => {
     return transactions.filter(t => {
       const matchSearch = searchTerm 
         ? (t.description?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-           t.category?.toLowerCase().includes(searchTerm.toLowerCase()))
+           t.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           t.bank?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           t.smsReferenceId?.toLowerCase().includes(searchTerm.toLowerCase()))
         : true;
 
       const matchMethod = methodFilter === 'all' 
         ? true 
+        : methodFilter === 'sms'
+        ? (t.source === 'sms_auto_detected' || !!t.smsReferenceId || !!t.bank)
         : methodFilter === 'Cash' 
         ? t.paymentMethod === 'Cash' 
         : t.paymentMethod !== 'Cash';
@@ -104,20 +109,30 @@ const TransactionsScreen = () => {
     <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.background }]}>
       {/* Search Header */}
       <View style={[styles.header, { backgroundColor: themeColors.surface, borderBottomColor: themeColors.border }]}>
-        <View style={[styles.searchBox, { backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.border }]}>
-          <Search size={16} color={themeColors.textMuted} style={{ marginRight: 8 }} />
-          <TextInput
-            value={searchTerm}
-            onChangeText={setSearchTerm}
-            placeholder="Search expenses, coffee, rent, auto..."
-            placeholderTextColor={themeColors.textMuted}
-            style={[styles.searchInput, { color: themeColors.textPrimary }]}
-          />
-          {searchTerm ? (
-            <TouchableOpacity onPress={() => setSearchTerm('')}>
-              <X size={16} color={themeColors.textMuted} />
-            </TouchableOpacity>
-          ) : null}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={[styles.searchBox, { flex: 1, backgroundColor: themeColors.surfaceSubtle, borderColor: themeColors.border }]}>
+            <Search size={16} color={themeColors.textMuted} style={{ marginRight: 8 }} />
+            <TextInput
+              value={searchTerm}
+              onChangeText={setSearchTerm}
+              placeholder="Search expenses, coffee, rent, auto..."
+              placeholderTextColor={themeColors.textMuted}
+              style={[styles.searchInput, { color: themeColors.textPrimary }]}
+            />
+            {searchTerm ? (
+              <TouchableOpacity onPress={() => setSearchTerm('')}>
+                <X size={16} color={themeColors.textMuted} />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('SmsLog')}
+            style={[styles.smsHeaderBtn, { borderColor: colors.primary, backgroundColor: isDarkMode ? '#1e293b' : '#ecfdf5' }]}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Smartphone size={15} color={colors.primary} />
+            <Text style={[styles.smsHeaderBtnText, { color: colors.primary }]}>SMS Log</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -131,6 +146,19 @@ const TransactionsScreen = () => {
           >
             <Text style={[styles.filterPillText, methodFilter === 'all' && styles.filterPillTextActive]}>
               All Methods
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => setMethodFilter('sms')}
+            style={[
+              styles.filterPill, 
+              methodFilter === 'sms' && [styles.filterPillActive, { backgroundColor: '#2563eb' }]
+            ]}
+          >
+            <Smartphone size={13} color={methodFilter === 'sms' ? '#ffffff' : '#2563eb'} style={{ marginRight: 4 }} />
+            <Text style={[styles.filterPillText, methodFilter === 'sms' && styles.filterPillTextActive]}>
+              SMS Log ({transactions.filter(t => t.source === 'sms_auto_detected' || t.smsReferenceId || t.bank).length})
             </Text>
           </TouchableOpacity>
 
@@ -186,6 +214,29 @@ const TransactionsScreen = () => {
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => setRefreshing(false)} colors={[colors.primary]} />}
       >
+        {methodFilter === 'sms' && (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => navigation.navigate('SmsLog')}
+            style={[styles.smsBanner, { backgroundColor: isDarkMode ? '#1e293b' : '#eff6ff', borderColor: '#bfdbfe' }]}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+              <View style={styles.smsBannerIcon}>
+                <Smartphone size={18} color="#2563eb" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.smsBannerTitle, { color: themeColors.textPrimary }]}>
+                  SMS Auto-Detected Transactions
+                </Text>
+                <Text style={styles.smsBannerSubtitle}>
+                  Tap to open full dedicated SMS Log with bank analytics
+                </Text>
+              </View>
+            </View>
+            <ChevronRight size={16} color="#2563eb" />
+          </TouchableOpacity>
+        )}
+
         <Text style={[styles.countHeader, { color: themeColors.textSecondary }]}>
           Showing {filteredList.length} transactions
         </Text>
@@ -313,6 +364,46 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     paddingHorizontal: 12,
+  },
+  smsHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 44,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  smsHeaderBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  smsBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  smsBannerIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: 'rgba(37, 99, 235, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  smsBannerTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  smsBannerSubtitle: {
+    fontSize: 11,
+    color: '#64748b',
+    fontWeight: '600',
+    marginTop: 1,
   },
   searchInput: {
     flex: 1,

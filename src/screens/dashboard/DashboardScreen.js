@@ -21,6 +21,7 @@ import {
   ChevronRight,
   Sparkles,
   User,
+  Smartphone,
   PieChart as PieChartIcon
 } from 'lucide-react-native';
 import { collection, doc, query, orderBy, onSnapshot } from 'firebase/firestore';
@@ -292,7 +293,17 @@ const DashboardScreen = ({ navigation }) => {
 
         {/* Recent Transactions Section */}
         <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Recent Activity</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={[styles.sectionTitle, { color: themeColors.textPrimary }]}>Recent Activity</Text>
+            <TouchableOpacity 
+              onPress={() => navigation.navigate('SmsLog')}
+              style={[styles.smsActivityBadge, { backgroundColor: isDarkMode ? '#1e293b' : '#ecfdf5', borderColor: colors.primary }]}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Smartphone size={11} color={colors.primary} />
+              <Text style={[styles.smsActivityBadgeText, { color: colors.primary }]}>SMS Log</Text>
+            </TouchableOpacity>
+          </View>
           <TouchableOpacity onPress={() => navigation.navigate('Transactions')}>
             <Text style={styles.seeAllText}>See all ({transactions.length})</Text>
           </TouchableOpacity>
@@ -636,6 +647,19 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '900',
     letterSpacing: -0.2,
+  },
+  smsActivityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  smsActivityBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
   },
   seeAllText: {
     fontSize: 12,

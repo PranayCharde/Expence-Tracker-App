@@ -131,6 +131,28 @@ const testCases = [
     sms: 'Hey Pranay, did you reach the cafe? Let me know when you arrive!',
     sender: '+919876543210',
     expectedEligible: false
+  },
+  {
+    id: 15,
+    name: 'HDFC Credit Card Bill Payment received (must be expense/debit)',
+    sms: 'Payment of Rs 15000.00 received towards your HDFC Bank Credit Card ending 1234 on 15-NOV-26. Avail limit: Rs 85000.00.',
+    sender: 'AD-HDFCBK',
+    expectedEligible: true,
+    expectedAmount: 15000,
+    expectedType: 'debit',
+    expectedCategory: 'Utilities',
+    expectedMethod: 'Card'
+  },
+  {
+    id: 16,
+    name: 'SBI Card Bill Payment received (must be expense/debit)',
+    sms: 'Thank you for payment of Rs. 10,000.00 towards SBI Card ending 5678 on 16/11/2026. Available credit limit is Rs. 90,000.00.',
+    sender: 'VK-SBICRD',
+    expectedEligible: true,
+    expectedAmount: 10000,
+    expectedType: 'debit',
+    expectedCategory: 'Utilities',
+    expectedMethod: 'Card'
   }
 ];
 

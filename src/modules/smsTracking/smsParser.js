@@ -87,13 +87,45 @@ function extractAmount(body) {
 }
 
 /**
+ * Detect if the SMS is a confirmation of a Credit Card Bill Payment
+ * (e.g. "Payment of Rs 15,000 received towards your HDFC Bank Credit Card...",
+ * "Thank you for payment of Rs 5,000 towards your SBI Card",
+ * "Received payment of Rs 2,500 towards your ICICI Credit Card",
+ * "Payment received towards card ending XX1234")
+ * Even though the SMS mentions "received" or "credited towards card",
+ * this represents a bill payment OUTFLOW / EXPENSE for the user, NOT income!
+ */
+export function isCreditCardBillPayment(body) {
+  if (!body || typeof body !== 'string') return false;
+  const lower = body.toLowerCase();
+
+  const hasCardContext = /(?:credit\s*card|sbi\s*card|axis\s*card|hdfc\s*card|icici\s*card|kotak\s*card|one\s*card|rbl\s*card|card\s*ending|card\s*xx|card\s*no\.?|\bcard\b)/i.test(lower);
+  if (!hasCardContext) return false;
+
+  if (/payment.*(?:received|credited)\s+(?:towards|for|to)/i.test(lower)) return true;
+  if (/received\s+(?:the\s+)?payment.*(?:towards|for|to)/i.test(lower)) return true;
+  if (/thank\s+you\s+for.*payment.*(?:towards|for|on)/i.test(lower)) return true;
+  if (/(?:payment|pmt).*(?:towards|for)\s+(?:your\s+)?(?:credit\s*card|sbi\s*card|card)/i.test(lower)) return true;
+  if (/paid.*towards.*(?:credit\s*card|sbi\s*card|card)/i.test(lower)) return true;
+  if (/credit\s*card\s*(?:bill\s*)?payment.*(?:successful|received|processed|credited)/i.test(lower)) return true;
+  if (/(?:payment|pmt).*towards.*(?:credit\s*card|sbi\s*card|card).*received/i.test(lower)) return true;
+
+  return false;
+}
+
+/**
  * Determine Debit or Credit type
  * @returns {'debit' | 'credit'}
  */
 function extractType(body) {
   const lower = body.toLowerCase();
 
-  // 1. Direct card spend check (e.g., "Credit Card was used for...", "Card spent")
+  // 1. Credit Card bill payments: Even if "received" is present, it's an EXPENSE!
+  if (isCreditCardBillPayment(body)) {
+    return 'debit';
+  }
+
+  // 2. Direct card spend check (e.g., "Credit Card was used for...", "Card spent")
   if (/(?:credit\s*card|debit\s*card|card)\s+.*?\b(?:used\s+for|was\s+used|spent|paid|purchase|debited)\b/i.test(lower)) {
     return 'debit';
   }
@@ -151,6 +183,10 @@ function extractType(body) {
  */
 function extractPaymentMethod(body) {
   const lower = body.toLowerCase();
+
+  if (isCreditCardBillPayment(body)) {
+    return 'Card';
+  }
 
   if (/\batm\b|cash\s*withdrawal/i.test(lower)) {
     return 'Cash';
@@ -213,6 +249,12 @@ function extractReferenceId(body, fallbackTimestamp) {
  * Extract Merchant or Recipient / Sender name
  */
 function extractMerchant(body, type) {
+  // If credit card bill payment, provide a clear merchant name
+  if (isCreditCardBillPayment(body)) {
+    const bank = identifyBank('', body);
+    return bank !== 'Bank Account' ? `${bank} Credit Card Bill` : 'Credit Card Bill Payment';
+  }
+
   // Look for "paid to <merchant>", "to VPA <merchant>", "at <merchant>", "info <merchant>", "from <merchant>"
   const patterns = [
     /(?:paid\s+to|to\s+vpa)\s+([A-Za-z0-9\.\-\_\&\s]{2,30}?)(?:\s+on|\s+ref|\s+avail|\s+bal|\s+upi|\.|\,|$)/i,
@@ -317,6 +359,7 @@ export function parseSms(body, sender = '', timestamp = Date.now()) {
 
 export default {
   parseSms,
+  isCreditCardBillPayment,
   identifyBank,
   extractAmount,
   extractType,

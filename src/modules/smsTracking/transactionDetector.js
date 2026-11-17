@@ -54,7 +54,7 @@ const PROMO_KEYWORDS = [
 
 // Financial action keywords (Debit & Credit)
 const FINANCIAL_ACTION_PATTERNS = [
-  /\b(?:debited|spent|paid|withdrawn|withdrawal|debited\s+by|sent|purchase|used\s+for|was\s+used)\b/i,
+  /\b(?:debited|spent|paid|payment|withdrawn|withdrawal|debited\s+by|sent|purchase|used\s+for|was\s+used)\b/i,
   /\b(?:credited|received|deposited|refund|refunded|reversal|reversed|salary|added|processed)\b/i,
   /\b(?:dr\.?|cr\.?)\b/i,
   /\bupi\b/i,

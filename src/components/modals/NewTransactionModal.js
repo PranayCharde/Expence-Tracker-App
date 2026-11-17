@@ -24,7 +24,25 @@ import {
   CreditCard, 
   Building2,
   Coins,
-  RotateCcw
+  RotateCcw,
+  ChevronDown,
+  ChevronUp,
+  Utensils,
+  Coffee,
+  ShoppingBag,
+  ShoppingCart,
+  Car,
+  Home,
+  Zap,
+  Film,
+  HeartPulse,
+  User as UserIcon,
+  GraduationCap,
+  Plane,
+  Briefcase,
+  DollarSign,
+  Sparkles,
+  Check
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { collection, addDoc, updateDoc, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -33,11 +51,62 @@ import { db, storage } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
 import { notifyTransaction } from '../../services/notificationService';
+import { navigate } from '../../navigation/navigationRef';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, PAYMENT_METHODS, INDIAN_DENOMINATIONS } from '../../config/constants';
 import { getTodayDateString, getYesterdayDateString, formatTransactionDate } from '../../utils/formatDate';
 import Button from '../common/Button';
 import { colors } from '../../theme/colors';
 import { spacing, radius, layout, typography } from '../../theme/spacing';
+
+const getCategoryMeta = (cat) => {
+  switch (cat) {
+    case 'Food':
+      return { icon: Utensils, color: '#f97316', bg: '#fff7ed' };
+    case 'Dining':
+      return { icon: Utensils, color: '#ef4444', bg: '#fef2f2' };
+    case 'Shopping':
+      return { icon: ShoppingBag, color: '#3b82f6', bg: '#eff6ff' };
+    case 'Groceries':
+      return { icon: ShoppingCart, color: '#10b981', bg: '#ecfdf5' };
+    case 'Transport':
+      return { icon: Car, color: '#6366f1', bg: '#eef2ff' };
+    case 'Rent':
+      return { icon: Home, color: '#8b5cf6', bg: '#f5f3ff' };
+    case 'Utilities':
+      return { icon: Zap, color: '#eab308', bg: '#fefce8' };
+    case 'Entertainment':
+      return { icon: Film, color: '#ec4899', bg: '#fdf2f8' };
+    case 'Medical':
+      return { icon: HeartPulse, color: '#f43f5e', bg: '#fff1f2' };
+    case 'Personal':
+      return { icon: UserIcon, color: '#06b6d4', bg: '#ecfeff' };
+    case 'Education':
+      return { icon: GraduationCap, color: '#0284c7', bg: '#f0f9ff' };
+    case 'Travel':
+      return { icon: Plane, color: '#14b8a6', bg: '#f0fdfa' };
+    case 'Tea & Snacks':
+      return { icon: Coffee, color: '#d97706', bg: '#fffbeb' };
+    case 'Salary':
+      return { icon: DollarSign, color: '#10b981', bg: '#ecfdf5' };
+    case 'Freelance':
+      return { icon: Briefcase, color: '#3b82f6', bg: '#eff6ff' };
+    case 'Business':
+      return { icon: Building2, color: '#8b5cf6', bg: '#f5f3ff' };
+    case 'Investment':
+      return { icon: Coins, color: '#10b981', bg: '#ecfdf5' };
+    case 'ATM Withdrawal':
+      return { icon: Banknote, color: '#f97316', bg: '#fff7ed' };
+    case 'Allowance / Pocket Money':
+      return { icon: Coins, color: '#eab308', bg: '#fefce8' };
+    case 'Received from Friend':
+      return { icon: UserIcon, color: '#6366f1', bg: '#eef2ff' };
+    case 'Refund':
+      return { icon: RotateCcw, color: '#10b981', bg: '#ecfdf5' };
+    case 'Other':
+    default:
+      return { icon: Sparkles, color: '#64748b', bg: '#f8fafc' };
+  }
+};
 
 const NewTransactionModal = ({ 
   visible, 
@@ -56,6 +125,7 @@ const NewTransactionModal = ({
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState(defaultType === 'income' ? 'Salary' : 'Shopping');
   const [customCategory, setCustomCategory] = useState('');
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState(defaultPaymentMethod);
   const [description, setDescription] = useState('');
   const [dateStr, setDateStr] = useState(getTodayDateString());
@@ -307,6 +377,8 @@ const NewTransactionModal = ({
       const txAmount = type === 'expense' ? -Math.abs(numAmount) : Math.abs(numAmount);
       const cleanDate = dateStr.trim();
 
+      let savedTx = null;
+
       if (isEditMode) {
         // Update existing transaction
         await updateDoc(doc(db, 'users', user.uid, 'transactions', initialTransaction.id), {
@@ -318,9 +390,19 @@ const NewTransactionModal = ({
           notesSummary: (paymentMethod === 'Cash' && notesSummary) ? notesSummary : null,
           receiptUrl: receiptUrl || null
         });
+
+        savedTx = {
+          id: initialTransaction.id,
+          amount: txAmount,
+          category: finalCategory,
+          description: description.trim() || finalCategory,
+          paymentMethod: paymentMethod,
+          date: cleanDate,
+          notesSummary: (paymentMethod === 'Cash' && notesSummary) ? notesSummary : null
+        };
       } else {
         // Create new transaction
-        await addDoc(collection(db, 'users', user.uid, 'transactions'), {
+        const docRef = await addDoc(collection(db, 'users', user.uid, 'transactions'), {
           amount: txAmount,
           category: finalCategory,
           description: description.trim() || finalCategory,
@@ -331,12 +413,23 @@ const NewTransactionModal = ({
           receiptUrl: receiptUrl || null
         });
 
+        savedTx = {
+          id: docRef.id,
+          amount: txAmount,
+          category: finalCategory,
+          description: description.trim() || finalCategory,
+          paymentMethod: paymentMethod,
+          date: cleanDate,
+          notesSummary: (paymentMethod === 'Cash' && notesSummary) ? notesSummary : null
+        };
+
         // Fire notification for new records
         notifyTransaction({
           type: type,
           amount: numAmount,
           category: finalCategory,
-          paymentMethod: paymentMethod
+          paymentMethod: paymentMethod,
+          transaction: savedTx
         });
       }
 
@@ -373,6 +466,11 @@ const NewTransactionModal = ({
 
       if (onSuccess) onSuccess();
       onClose();
+
+      // Open new LoggedTransaction page
+      if (savedTx) {
+        navigate('LoggedTransaction', { transaction: savedTx });
+      }
     } catch (err) {
       console.error("Error saving transaction:", err);
       Alert.alert('Error', isEditMode ? 'Failed to update transaction.' : 'Failed to save transaction.');
@@ -518,25 +616,53 @@ const NewTransactionModal = ({
             <View style={styles.inputGroup}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
                 <Text style={[styles.label, { color: themeColors.textSecondary }]}>Payment Method</Text>
-                <Text style={{ fontSize: 11, fontWeight: '800', color: paymentMethod === 'Cash' ? colors.primary : colors.info }}>
-                  {paymentMethod === 'Cash' ? (type === 'expense' ? '💵 Cash Expense' : '💵 Cash Income') : '⚡ Digital / Online'}
-                </Text>
+                <View style={[
+                  styles.paymentModeBadge,
+                  {
+                    backgroundColor: paymentMethod === 'Cash'
+                      ? (isDarkMode ? 'rgba(16, 185, 129, 0.2)' : '#ecfdf5')
+                      : paymentMethod === 'Online / UPI'
+                      ? (isDarkMode ? 'rgba(59, 130, 246, 0.2)' : '#eff6ff')
+                      : paymentMethod.includes('Card')
+                      ? (isDarkMode ? 'rgba(168, 85, 247, 0.2)' : '#f5f3ff')
+                      : (isDarkMode ? 'rgba(245, 158, 11, 0.2)' : '#fef3c7')
+                  }
+                ]}>
+                  <Text style={[
+                    styles.paymentModeBadgeText,
+                    {
+                      color: paymentMethod === 'Cash'
+                        ? '#10b981'
+                        : paymentMethod === 'Online / UPI'
+                        ? '#3b82f6'
+                        : paymentMethod.includes('Card')
+                        ? '#a855f7'
+                        : '#f59e0b'
+                    }
+                  ]}>
+                    {paymentMethod === 'Cash'
+                      ? (type === 'expense' ? '💵 Cash Expense' : '💵 Cash Income')
+                      : paymentMethod === 'Online / UPI'
+                      ? '⚡ UPI / Online'
+                      : paymentMethod.includes('Card')
+                      ? '💳 Card'
+                      : '🏦 Net Banking'}
+                  </Text>
+                </View>
               </View>
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false} 
-                contentContainerStyle={styles.methodScroll}
-                keyboardShouldPersistTaps="handled"
-              >
+
+              <View style={styles.methodGrid}>
                 {PAYMENT_METHODS.map(m => {
                   const isSelected = paymentMethod === m;
                   const renderIcon = () => {
-                    const iconColor = isSelected ? '#ffffff' : (m === 'Cash' ? colors.primary : m === 'Online / UPI' ? '#3b82f6' : m.includes('Card') ? '#a855f7' : '#f59e0b');
-                    if (m === 'Cash') return <Banknote size={15} color={iconColor} />;
-                    if (m === 'Online / UPI') return <Smartphone size={15} color={iconColor} />;
-                    if (m.includes('Card')) return <CreditCard size={15} color={iconColor} />;
-                    return <Building2 size={15} color={iconColor} />;
+                    const iconColor = isSelected ? '#ffffff' : (m === 'Cash' ? '#10b981' : m === 'Online / UPI' ? '#3b82f6' : m.includes('Card') ? '#a855f7' : '#f59e0b');
+                    if (m === 'Cash') return <Banknote size={17} color={iconColor} />;
+                    if (m === 'Online / UPI') return <Smartphone size={17} color={iconColor} />;
+                    if (m.includes('Card')) return <CreditCard size={17} color={iconColor} />;
+                    return <Building2 size={17} color={iconColor} />;
                   };
+
+                  const displayName = m === 'Credit / Debit Card' ? 'Card' : m === 'Bank Transfer' ? 'Net Banking' : m;
 
                   return (
                     <TouchableOpacity
@@ -544,7 +670,7 @@ const NewTransactionModal = ({
                       onPress={() => setPaymentMethod(m)}
                       activeOpacity={0.7}
                       style={[
-                        styles.methodPill,
+                        styles.methodGridCard,
                         { 
                           borderColor: isSelected ? colors.primary : themeColors.border,
                           backgroundColor: isSelected 
@@ -553,18 +679,37 @@ const NewTransactionModal = ({
                         }
                       ]}
                     >
-                      {renderIcon()}
-                      <Text style={[
-                        styles.methodPillText,
-                        { color: isSelected ? '#ffffff' : themeColors.textPrimary },
-                        isSelected && { fontWeight: '900' }
+                      <View style={[
+                        styles.methodIconWrapper, 
+                        { backgroundColor: isSelected ? 'rgba(255,255,255,0.2)' : (isDarkMode ? '#334155' : '#ffffff') }
                       ]}>
-                        {m}
-                      </Text>
+                        {renderIcon()}
+                      </View>
+                      <View style={styles.methodTextCol}>
+                        <Text 
+                          numberOfLines={1}
+                          style={[
+                            styles.methodGridCardText,
+                            { color: isSelected ? '#ffffff' : themeColors.textPrimary },
+                            isSelected && { fontWeight: '900' }
+                          ]}
+                        >
+                          {displayName}
+                        </Text>
+                        <Text 
+                          numberOfLines={1}
+                          style={[
+                            styles.methodGridCardSub,
+                            { color: isSelected ? 'rgba(255,255,255,0.8)' : themeColors.textMuted }
+                          ]}
+                        >
+                          {m === 'Cash' ? 'Physical Notes' : m === 'Online / UPI' ? 'Instant / Apps' : m.includes('Card') ? 'Credit / Debit' : 'IMPS / NEFT'}
+                        </Text>
+                      </View>
                     </TouchableOpacity>
                   );
                 })}
-              </ScrollView>
+              </View>
             </View>
 
             {/* Cash Denomination Notes Picker (when Cash selected) */}
@@ -714,43 +859,163 @@ const NewTransactionModal = ({
               </View>
             )}
 
-            {/* Category Pills */}
+            {/* Category Selector */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: themeColors.textSecondary, marginBottom: 2 }]}>Category</Text>
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false} 
-                contentContainerStyle={styles.categoryScroll}
-                keyboardShouldPersistTaps="handled"
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                <Text style={[styles.label, { color: themeColors.textSecondary }]}>Category</Text>
+                <TouchableOpacity 
+                  onPress={() => setShowCategoryPicker(prev => !prev)} 
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: colors.primary }}>
+                    {showCategoryPicker ? 'Collapse ▲' : `View All (${categories.length}) ▼`}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Web-Style Dropdown Bar */}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setShowCategoryPicker(prev => !prev)}
+                style={[
+                  styles.categoryDropdownBar,
+                  { 
+                    borderColor: showCategoryPicker ? colors.primary : themeColors.border,
+                    backgroundColor: isDarkMode ? themeColors.surfaceSubtle : '#ffffff' 
+                  }
+                ]}
               >
-                {categories.map(cat => {
-                  const isSelected = category === cat;
-                  return (
-                    <TouchableOpacity
-                      key={cat}
-                      onPress={() => setCategory(cat)}
-                      activeOpacity={0.7}
-                      style={[
-                        styles.categoryChip,
-                        { 
-                          borderColor: isSelected ? colors.primary : themeColors.border,
-                          backgroundColor: isSelected 
-                            ? colors.primary 
-                            : (isDarkMode ? themeColors.surfaceSubtle : '#f8fafc')
-                        }
-                      ]}
-                    >
-                      <Text style={[
-                        styles.categoryChipText,
-                        { color: isSelected ? '#ffffff' : themeColors.textPrimary },
-                        isSelected && { fontWeight: '900' }
-                      ]}>
-                        {cat}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+                <View style={styles.categoryDropdownLeft}>
+                  {(() => {
+                    const meta = getCategoryMeta(category);
+                    const SelectedCatIcon = meta.icon;
+                    return (
+                      <>
+                        <View style={[styles.categoryIconBadge, { backgroundColor: isDarkMode ? '#1e293b' : meta.bg }]}>
+                          <SelectedCatIcon size={18} color={meta.color} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.categorySelectedName, { color: themeColors.textPrimary }]}>
+                            {category}
+                          </Text>
+                          <Text style={[styles.categorySelectedSubtitle, { color: themeColors.textMuted }]}>
+                            {showCategoryPicker ? 'Tap any card below to select' : 'Tap to choose from all categories'}
+                          </Text>
+                        </View>
+                      </>
+                    );
+                  })()}
+                </View>
+                <View style={[styles.dropdownChevronCircle, { backgroundColor: isDarkMode ? '#334155' : '#f1f5f9' }]}>
+                  {showCategoryPicker ? (
+                    <ChevronUp size={16} color={colors.primary} />
+                  ) : (
+                    <ChevronDown size={16} color={themeColors.textSecondary} />
+                  )}
+                </View>
+              </TouchableOpacity>
+
+              {/* Full Category Grid when expanded */}
+              {showCategoryPicker ? (
+                <View style={styles.categoryGridContainer}>
+                  <View style={styles.categoryGrid}>
+                    {categories.map(cat => {
+                      const isSelected = category === cat;
+                      const meta = getCategoryMeta(cat);
+                      const CatIcon = meta.icon;
+                      return (
+                        <TouchableOpacity
+                          key={cat}
+                          onPress={() => {
+                            setCategory(cat);
+                            setShowCategoryPicker(false);
+                          }}
+                          activeOpacity={0.7}
+                          style={[
+                            styles.categoryGridCard,
+                            {
+                              borderColor: isSelected ? colors.primary : themeColors.border,
+                              backgroundColor: isSelected 
+                                ? (isDarkMode ? 'rgba(16, 185, 129, 0.25)' : '#ecfdf5') 
+                                : (isDarkMode ? themeColors.surfaceSubtle : '#ffffff')
+                            }
+                          ]}
+                        >
+                          <View style={[styles.categoryGridIconBox, { backgroundColor: isDarkMode ? '#1e293b' : meta.bg }]}>
+                            <CatIcon size={16} color={meta.color} />
+                          </View>
+                          <Text 
+                            numberOfLines={1} 
+                            style={[
+                              styles.categoryGridText,
+                              { color: isSelected ? colors.primary : themeColors.textPrimary },
+                              isSelected && { fontWeight: '900' }
+                            ]}
+                          >
+                            {cat}
+                          </Text>
+                          {isSelected && (
+                            <View style={styles.categoryGridCheckBadge}>
+                              <Check size={9} color="#ffffff" />
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              ) : (
+                /* Quick selection chips when collapsed */
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false} 
+                  contentContainerStyle={styles.categoryQuickScroll}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {categories.slice(0, 5).map(cat => {
+                    const isSelected = category === cat;
+                    const meta = getCategoryMeta(cat);
+                    const CatIcon = meta.icon;
+                    return (
+                      <TouchableOpacity
+                        key={cat}
+                        onPress={() => setCategory(cat)}
+                        activeOpacity={0.7}
+                        style={[
+                          styles.categoryQuickChip,
+                          { 
+                            borderColor: isSelected ? colors.primary : themeColors.border,
+                            backgroundColor: isSelected 
+                              ? colors.primary 
+                              : (isDarkMode ? themeColors.surfaceSubtle : '#f8fafc')
+                          }
+                        ]}
+                      >
+                        <CatIcon size={13} color={isSelected ? '#ffffff' : meta.color} />
+                        <Text style={[
+                          styles.categoryQuickChipText,
+                          { color: isSelected ? '#ffffff' : themeColors.textPrimary },
+                          isSelected && { fontWeight: '900' }
+                        ]}>
+                          {cat}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                  <TouchableOpacity
+                    onPress={() => setShowCategoryPicker(true)}
+                    activeOpacity={0.7}
+                    style={[
+                      styles.categoryQuickChipMore,
+                      { borderColor: themeColors.border, backgroundColor: isDarkMode ? themeColors.surfaceSubtle : '#f1f5f9' }
+                    ]}
+                  >
+                    <Text style={[styles.categoryQuickChipMoreText, { color: colors.primary }]}>
+                      + More ({categories.length - 5})
+                    </Text>
+                  </TouchableOpacity>
+                </ScrollView>
+              )}
             </View>
 
             {/* Custom Category Input if 'Other' */}
@@ -951,36 +1216,160 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     padding: 0,
   },
-  methodScroll: {
-    gap: 8,
-    paddingVertical: 4,
+  paymentModeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
   },
-  methodPill: {
+  paymentModeBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  methodGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  methodGridCard: {
+    width: '48.5%',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     borderRadius: 14,
     borderWidth: 1.5,
   },
-  methodPillText: {
-    fontSize: 12,
-    fontWeight: '700',
+  methodIconWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  categoryScroll: {
+  methodTextCol: {
+    flex: 1,
+  },
+  methodGridCardText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  methodGridCardSub: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  categoryDropdownBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1.5,
+  },
+  categoryDropdownLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  categoryIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categorySelectedName: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  categorySelectedSubtitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  dropdownChevronCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
+  },
+  categoryGridContainer: {
+    paddingTop: 8,
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
+  },
+  categoryGridCard: {
+    width: '31.3%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    position: 'relative',
+    gap: 6,
+  },
+  categoryGridIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryGridText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  categoryGridCheckBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryQuickScroll: {
+    gap: 6,
     paddingVertical: 4,
   },
-  categoryChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1.5,
+  categoryQuickChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
   },
-  categoryChipText: {
-    fontSize: 12,
+  categoryQuickChipText: {
+    fontSize: 11,
     fontWeight: '700',
+  },
+  categoryQuickChipMore: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryQuickChipMoreText: {
+    fontSize: 11,
+    fontWeight: '800',
   },
   textInput: {
     borderWidth: 1,

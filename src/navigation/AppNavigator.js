@@ -10,7 +10,9 @@ import {
   Wallet, 
   Target, 
   PieChart, 
-  Settings as SettingsIcon 
+  Settings as SettingsIcon,
+  Smartphone,
+  MoreHorizontal 
 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useSettings } from '../context/SettingsContext';
@@ -24,6 +26,10 @@ import CashWalletScreen from '../screens/cash/CashWalletScreen';
 import BudgetsScreen from '../screens/budgets/BudgetsScreen';
 import ReportsScreen from '../screens/reports/ReportsScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen';
+import LoggedTransactionScreen from '../screens/transactions/LoggedTransactionScreen';
+import SmsLogScreen from '../screens/transactions/SmsLogScreen';
+import MoreScreen from '../screens/more/MoreScreen';
+import { navigationRef } from './navigationRef';
 import { colors } from '../theme/colors';
 
 const Stack = createNativeStackNavigator();
@@ -89,6 +95,21 @@ const MainTabs = () => {
         }}
       />
       <Tab.Screen 
+        name="SmsLogTab" 
+        component={SmsLogScreen} 
+        options={{
+          tabBarLabel: 'SMS Log',
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[
+              styles.smsTabPill,
+              focused && { backgroundColor: isDarkMode ? 'rgba(37, 99, 235, 0.25)' : '#eff6ff' }
+            ]}>
+              <Smartphone size={focused ? 21 : 19} color={focused ? '#2563eb' : color} strokeWidth={focused ? 2.5 : 2} />
+            </View>
+          )
+        }}
+      />
+      <Tab.Screen 
         name="Cash" 
         component={CashWalletScreen} 
         options={{
@@ -104,36 +125,60 @@ const MainTabs = () => {
         }}
       />
       <Tab.Screen 
-        name="Budgets" 
-        component={BudgetsScreen} 
+        name="More" 
+        component={MoreScreen} 
         options={{
-          tabBarLabel: 'Budgets',
+          tabBarLabel: 'More',
           tabBarIcon: ({ color, focused }) => (
-            <Target size={focused ? 21 : 19} color={color} strokeWidth={focused ? 2.5 : 2} />
-          )
-        }}
-      />
-      <Tab.Screen 
-        name="Reports" 
-        component={ReportsScreen} 
-        options={{
-          tabBarLabel: 'Reports',
-          tabBarIcon: ({ color, focused }) => (
-            <PieChart size={focused ? 21 : 19} color={color} strokeWidth={focused ? 2.5 : 2} />
-          )
-        }}
-      />
-      <Tab.Screen 
-        name="Settings" 
-        component={SettingsScreen} 
-        options={{
-          tabBarLabel: 'Settings',
-          tabBarIcon: ({ color, focused }) => (
-            <SettingsIcon size={focused ? 21 : 19} color={color} strokeWidth={focused ? 2.5 : 2} />
+            <MoreHorizontal size={focused ? 22 : 19} color={color} strokeWidth={focused ? 2.5 : 2} />
           )
         }}
       />
     </Tab.Navigator>
+  );
+};
+
+const AppStack = () => {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="MainTabs" component={MainTabs} />
+      <Stack.Screen 
+        name="LoggedTransaction" 
+        component={LoggedTransactionScreen} 
+        options={{ 
+          animation: 'slide_from_bottom',
+          presentation: 'card'
+        }} 
+      />
+      <Stack.Screen 
+        name="SmsLog" 
+        component={SmsLogScreen} 
+        options={{ 
+          animation: 'slide_from_right'
+        }} 
+      />
+      <Stack.Screen 
+        name="Budgets" 
+        component={BudgetsScreen} 
+        options={{ 
+          animation: 'slide_from_right'
+        }} 
+      />
+      <Stack.Screen 
+        name="Reports" 
+        component={ReportsScreen} 
+        options={{ 
+          animation: 'slide_from_right'
+        }} 
+      />
+      <Stack.Screen 
+        name="Settings" 
+        component={SettingsScreen} 
+        options={{ 
+          animation: 'slide_from_right'
+        }} 
+      />
+    </Stack.Navigator>
   );
 };
 
@@ -179,8 +224,8 @@ const AppNavigator = () => {
   };
 
   return (
-    <NavigationContainer theme={navigationTheme}>
-      {user ? <MainTabs /> : <AuthStack />}
+    <NavigationContainer ref={navigationRef} theme={navigationTheme}>
+      {user ? <AppStack /> : <AuthStack />}
     </NavigationContainer>
   );
 };
@@ -192,6 +237,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cashTabPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  smsTabPill: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,

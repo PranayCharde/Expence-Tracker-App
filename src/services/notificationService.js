@@ -89,23 +89,43 @@ export const sendInstantNotification = async (title, body, data = {}) => {
 /**
  * Send notification when spending or adding cash
  */
-export const notifyTransaction = async ({ type, amount, category, paymentMethod, walletBalance }) => {
+export const notifyTransaction = async ({ type, amount, category, paymentMethod, walletBalance, transaction }) => {
   const isCash = paymentMethod === 'Cash';
+  const isCcBill = /credit\s*card\s*bill/i.test(transaction?.description || '') || (category === 'Utilities' && paymentMethod === 'Card');
   const formattedAmount = `₹${Math.abs(amount).toFixed(2)}`;
 
-  if (type === 'income') {
-    const title = isCash ? '💰 Cash Added to Wallet' : '📈 Income Received';
-    const body = isCash
+  let title = '';
+  let body = '';
+
+  if (isCcBill) {
+    title = '💳 Credit Card Bill Paid';
+    body = `Paid ${formattedAmount} towards credit card bill. Recorded as an expense.`;
+  } else if (type === 'income') {
+    title = isCash ? '💰 Cash Added to Wallet' : '📈 Income Received';
+    body = isCash
       ? `Added ${formattedAmount} to physical wallet. Balance: ₹${walletBalance?.toFixed(2) || '0.00'}`
       : `Received ${formattedAmount} (${category})`;
-    await sendInstantNotification(title, body, { type, amount, isCash });
   } else {
-    const title = isCash ? '💸 Cash Spent from Wallet' : '💳 Expense Logged';
-    const body = isCash
+    title = isCash ? '💸 Cash Spent from Wallet' : '💳 Expense Logged';
+    body = isCash
       ? `Spent ${formattedAmount} on ${category}. Remaining wallet cash: ₹${walletBalance?.toFixed(2) || '0.00'}`
       : `Spent ${formattedAmount} on ${category} via ${paymentMethod || 'Online'}`;
-    await sendInstantNotification(title, body, { type, amount, isCash });
   }
+
+  const payload = { 
+    type, 
+    amount, 
+    isCash,
+    transaction: transaction || {
+      amount: type === 'income' ? Math.abs(amount) : -Math.abs(amount),
+      category,
+      paymentMethod,
+      description: transaction?.description || (isCcBill ? 'Credit Card Bill Payment' : `${category} via ${paymentMethod}`),
+      date: new Date().toISOString().split('T')[0]
+    }
+  };
+
+  await sendInstantNotification(title, body, payload);
 };
 
 /**

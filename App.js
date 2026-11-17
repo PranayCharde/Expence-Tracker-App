@@ -1,10 +1,12 @@
 import React, { useEffect } from 'react';
 import { Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import * as Notifications from 'expo-notifications';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { SettingsProvider, useSettings } from './src/context/SettingsContext';
 import AppNavigator from './src/navigation/AppNavigator';
+import { navigate } from './src/navigation/navigationRef';
 import { registerForPushNotificationsAsync, scheduleDailyWalletReminder } from './src/services/notificationService';
 import { 
   startSmsTrackingService, 
@@ -22,6 +24,24 @@ const RootContent = () => {
     // Request permission & setup notifications on app start
     registerForPushNotificationsAsync();
     scheduleDailyWalletReminder(21, 0); // 9:00 PM daily wallet recount reminder
+
+    // Listen for notification taps to open the new LoggedTransaction page
+    const notificationSubscription = Notifications.addNotificationResponseReceivedListener(response => {
+      try {
+        const data = response?.notification?.request?.content?.data;
+        if (data && data.transaction) {
+          navigate('LoggedTransaction', { transaction: data.transaction });
+        }
+      } catch (err) {
+        console.warn('Error handling notification tap:', err);
+      }
+    });
+
+    return () => {
+      if (notificationSubscription && typeof notificationSubscription.remove === 'function') {
+        notificationSubscription.remove();
+      }
+    };
   }, []);
 
   useEffect(() => {

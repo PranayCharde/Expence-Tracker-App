@@ -16,7 +16,17 @@ import {
   ArrowDownLeft, 
   ArrowUpRight, 
   RotateCcw,
-  Wallet
+  Wallet,
+  ChevronDown,
+  ChevronUp,
+  Utensils,
+  Coffee,
+  ShoppingBag,
+  ShoppingCart,
+  Car,
+  User as UserIcon,
+  Sparkles,
+  Check
 } from 'lucide-react-native';
 import { collection, addDoc, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -26,6 +36,7 @@ import { INDIAN_DENOMINATIONS } from '../../config/constants';
 import Button from '../common/Button';
 import { colors } from '../../theme/colors';
 import { notifyTransaction } from '../../services/notificationService';
+import { navigate } from '../../navigation/navigationRef';
 
 const CASH_EXPENSE_CATEGORIES = [
   'Food',
@@ -46,6 +57,38 @@ const CASH_INCOME_CATEGORIES = [
   'Refund',
   'Other'
 ];
+
+const getCategoryMeta = (cat) => {
+  switch (cat) {
+    case 'Food':
+      return { icon: Utensils, color: '#f97316', bg: '#fff7ed' };
+    case 'Tea & Snacks':
+      return { icon: Coffee, color: '#d97706', bg: '#fffbeb' };
+    case 'Shopping':
+      return { icon: ShoppingBag, color: '#3b82f6', bg: '#eff6ff' };
+    case 'Groceries':
+      return { icon: ShoppingCart, color: '#10b981', bg: '#ecfdf5' };
+    case 'Transport':
+      return { icon: Car, color: '#6366f1', bg: '#eef2ff' };
+    case 'Dining':
+      return { icon: Utensils, color: '#ef4444', bg: '#fef2f2' };
+    case 'Personal':
+      return { icon: UserIcon, color: '#06b6d4', bg: '#ecfeff' };
+    case 'ATM Withdrawal':
+      return { icon: Banknote, color: '#f97316', bg: '#fff7ed' };
+    case 'Salary in Cash':
+      return { icon: Banknote, color: '#10b981', bg: '#ecfdf5' };
+    case 'Received from Friend':
+      return { icon: UserIcon, color: '#6366f1', bg: '#eef2ff' };
+    case 'Cash Allowance':
+      return { icon: Coins, color: '#eab308', bg: '#fefce8' };
+    case 'Refund':
+      return { icon: RotateCcw, color: '#10b981', bg: '#ecfdf5' };
+    case 'Other':
+    default:
+      return { icon: Sparkles, color: '#64748b', bg: '#f8fafc' };
+  }
+};
 
 const SpendCashModal = ({ 
   visible, 
@@ -71,11 +114,13 @@ const SpendCashModal = ({
   });
   const [category, setCategory] = useState(mode === 'expense' ? 'Food' : 'ATM Withdrawal');
   const [customCategory, setCustomCategory] = useState('');
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (visible) {
+      setShowCategoryPicker(false);
       setInputMode('notes');
       setDirectAmount('');
       setSelectedNotes({
@@ -152,17 +197,29 @@ const SpendCashModal = ({
         : category;
 
       const txAmount = mode === 'expense' ? -Math.abs(finalAmount) : Math.abs(finalAmount);
+      const desc = description.trim() || (mode === 'expense' ? `${finalCategory} in cash` : 'Cash added to wallet');
+      const todayDate = new Date().toISOString().split('T')[0];
 
       // 1. Add transaction document
-      await addDoc(collection(db, 'users', user.uid, 'transactions'), {
+      const docRef = await addDoc(collection(db, 'users', user.uid, 'transactions'), {
         amount: txAmount,
         category: finalCategory,
-        description: description.trim() || (mode === 'expense' ? `${finalCategory} in cash` : 'Cash added to wallet'),
+        description: desc,
         paymentMethod: 'Cash',
-        date: new Date().toISOString().split('T')[0],
+        date: todayDate,
         createdAt: serverTimestamp(),
         notesSummary: notesSummary || null
       });
+
+      const loggedCashTx = {
+        id: docRef.id,
+        amount: txAmount,
+        category: finalCategory,
+        description: desc,
+        paymentMethod: 'Cash',
+        date: todayDate,
+        notesSummary: notesSummary || null
+      };
 
       // 2. Update remaining notes in user physical wallet
       if (inputMode === 'notes') {
@@ -196,11 +253,14 @@ const SpendCashModal = ({
         amount: finalAmount,
         category: finalCategory,
         paymentMethod: 'Cash',
-        walletBalance: projectedBalance
+        walletBalance: projectedBalance,
+        transaction: loggedCashTx
       });
 
       if (onSuccess) onSuccess();
       onClose();
+
+      navigate('LoggedTransaction', { transaction: loggedCashTx });
     } catch (err) {
       console.error("Error saving cash transaction:", err);
       Alert.alert('Error', 'Failed to record cash transaction.');
@@ -370,38 +430,165 @@ const SpendCashModal = ({
               </View>
             )}
 
-            {/* Category */}
+            {/* Category Selector */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: themeColors.textSecondary }]}>Category</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
-                {categories.map(cat => {
-                  const isSelected = category === cat;
-                  return (
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 2 }}>
+                <Text style={[styles.label, { color: themeColors.textSecondary }]}>Category</Text>
+                <TouchableOpacity 
+                  onPress={() => setShowCategoryPicker(prev => !prev)} 
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: colors.primary }}>
+                    {showCategoryPicker ? 'Collapse ▲' : `View All (${categories.length}) ▼`}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Web-Style Dropdown Bar */}
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setShowCategoryPicker(prev => !prev)}
+                style={[
+                  styles.categoryDropdownBar,
+                  { 
+                    borderColor: showCategoryPicker ? colors.primary : themeColors.border,
+                    backgroundColor: isDarkMode ? themeColors.surfaceSubtle : '#ffffff' 
+                  }
+                ]}
+              >
+                <View style={styles.categoryDropdownLeft}>
+                  {(() => {
+                    const meta = getCategoryMeta(category);
+                    const SelectedCatIcon = meta.icon;
+                    return (
+                      <>
+                        <View style={[styles.categoryIconBadge, { backgroundColor: isDarkMode ? '#1e293b' : meta.bg }]}>
+                          <SelectedCatIcon size={18} color={meta.color} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.categorySelectedName, { color: themeColors.textPrimary }]}>
+                            {category}
+                          </Text>
+                          <Text style={[styles.categorySelectedSubtitle, { color: themeColors.textMuted }]}>
+                            {showCategoryPicker ? 'Tap any card below to select' : 'Tap to choose from all categories'}
+                          </Text>
+                        </View>
+                      </>
+                    );
+                  })()}
+                </View>
+                <View style={[styles.dropdownChevronCircle, { backgroundColor: isDarkMode ? '#334155' : '#f1f5f9' }]}>
+                  {showCategoryPicker ? (
+                    <ChevronUp size={16} color={colors.primary} />
+                  ) : (
+                    <ChevronDown size={16} color={themeColors.textSecondary} />
+                  )}
+                </View>
+              </TouchableOpacity>
+
+              {/* Full Category Grid when expanded */}
+              {showCategoryPicker ? (
+                <View style={styles.categoryGridContainer}>
+                  <View style={styles.categoryGrid}>
+                    {categories.map(cat => {
+                      const isSelected = category === cat;
+                      const meta = getCategoryMeta(cat);
+                      const CatIcon = meta.icon;
+                      return (
+                        <TouchableOpacity
+                          key={cat}
+                          onPress={() => {
+                            setCategory(cat);
+                            setShowCategoryPicker(false);
+                          }}
+                          activeOpacity={0.7}
+                          style={[
+                            styles.categoryGridCard,
+                            {
+                              borderColor: isSelected ? colors.primary : themeColors.border,
+                              backgroundColor: isSelected 
+                                ? (isDarkMode ? 'rgba(16, 185, 129, 0.25)' : '#ecfdf5') 
+                                : (isDarkMode ? themeColors.surfaceSubtle : '#ffffff')
+                            }
+                          ]}
+                        >
+                          <View style={[styles.categoryGridIconBox, { backgroundColor: isDarkMode ? '#1e293b' : meta.bg }]}>
+                            <CatIcon size={16} color={meta.color} />
+                          </View>
+                          <Text 
+                            numberOfLines={1} 
+                            style={[
+                              styles.categoryGridText,
+                              { color: isSelected ? colors.primary : themeColors.textPrimary },
+                              isSelected && { fontWeight: '900' }
+                            ]}
+                          >
+                            {cat}
+                          </Text>
+                          {isSelected && (
+                            <View style={styles.categoryGridCheckBadge}>
+                              <Check size={9} color="#ffffff" />
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
+              ) : (
+                /* Quick selection chips when collapsed */
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false} 
+                  contentContainerStyle={styles.categoryQuickScroll}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {categories.slice(0, 5).map(cat => {
+                    const isSelected = category === cat;
+                    const meta = getCategoryMeta(cat);
+                    const CatIcon = meta.icon;
+                    return (
+                      <TouchableOpacity
+                        key={cat}
+                        onPress={() => setCategory(cat)}
+                        activeOpacity={0.7}
+                        style={[
+                          styles.categoryQuickChip,
+                          { 
+                            borderColor: isSelected ? colors.primary : themeColors.border,
+                            backgroundColor: isSelected 
+                              ? colors.primary 
+                              : (isDarkMode ? themeColors.surfaceSubtle : '#f8fafc')
+                          }
+                        ]}
+                      >
+                        <CatIcon size={13} color={isSelected ? '#ffffff' : meta.color} />
+                        <Text style={[
+                          styles.categoryQuickChipText,
+                          { color: isSelected ? '#ffffff' : themeColors.textPrimary },
+                          isSelected && { fontWeight: '900' }
+                        ]}>
+                          {cat}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                  {categories.length > 5 && (
                     <TouchableOpacity
-                      key={cat}
-                      onPress={() => setCategory(cat)}
+                      onPress={() => setShowCategoryPicker(true)}
                       activeOpacity={0.7}
                       style={[
-                        styles.categoryChip,
-                        { 
-                          borderColor: isSelected ? colors.primary : themeColors.border,
-                          backgroundColor: isSelected 
-                            ? colors.primary 
-                            : (isDarkMode ? themeColors.surfaceSubtle : '#f8fafc')
-                        }
+                        styles.categoryQuickChipMore,
+                        { borderColor: themeColors.border, backgroundColor: isDarkMode ? themeColors.surfaceSubtle : '#f1f5f9' }
                       ]}
                     >
-                      <Text style={[
-                        styles.categoryChipText,
-                        { color: isSelected ? '#ffffff' : themeColors.textPrimary },
-                        isSelected && { fontWeight: '900' }
-                      ]}>
-                        {cat}
+                      <Text style={[styles.categoryQuickChipMoreText, { color: colors.primary }]}>
+                        + More ({categories.length - 5})
                       </Text>
                     </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+                  )}
+                </ScrollView>
+              )}
             </View>
 
             {/* Custom Category Input if 'Other' */}
@@ -682,20 +869,115 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  categoryScroll: {
-    gap: 8,
-    paddingVertical: 2,
+  categoryDropdownBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+    borderWidth: 1.5,
   },
-  categoryChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+  categoryDropdownLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  categoryIconBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categorySelectedName: {
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  categorySelectedSubtitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  dropdownChevronCircle: {
+    width: 28,
+    height: 28,
     borderRadius: 14,
-    borderWidth: 1,
-    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8,
   },
-  categoryChipText: {
-    fontSize: 12,
+  categoryGridContainer: {
+    paddingTop: 8,
+  },
+  categoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryGridCard: {
+    width: '31.3%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    position: 'relative',
+    gap: 6,
+  },
+  categoryGridIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryGridText: {
+    fontSize: 11,
     fontWeight: '700',
+    textAlign: 'center',
+  },
+  categoryGridCheckBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryQuickScroll: {
+    gap: 6,
+    paddingVertical: 4,
+  },
+  categoryQuickChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  categoryQuickChipText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  categoryQuickChipMore: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  categoryQuickChipMoreText: {
+    fontSize: 11,
+    fontWeight: '800',
   },
   footer: {
     flexDirection: 'row',

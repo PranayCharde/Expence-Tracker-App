@@ -27,7 +27,7 @@ import {
   syncRecentSms
 } from '../../modules/smsTracking';
 
-const SettingsScreen = () => {
+const SettingsScreen = ({ navigation }) => {
   const { user, logout } = useAuth();
   const { 
     currency, 
@@ -165,6 +165,9 @@ const SettingsScreen = () => {
       } else if (type === 'salary') {
         sampleSms = `Rs. 85,000.00 credited to your A/C XX9999 on ${new Date().toLocaleDateString('en-GB')} by Salary/TechCorp Payroll (Ref ${Math.floor(100000000000 + Math.random() * 900000000000)}). Bal: Rs. 92,000.`;
         sampleSender = 'BP-ICICIB';
+      } else if (type === 'cc_bill') {
+        sampleSms = `Payment of Rs 15,000.00 received towards your HDFC Bank Credit Card ending 1234 on ${new Date().toLocaleDateString('en-GB')}. Avail limit: Rs 85,000.00.`;
+        sampleSender = 'AD-HDFCBK';
       } else if (type === 'otp') {
         sampleSms = `123456 is your secret OTP for ICICI Bank NetBanking login. Valid for 10 mins. Do not share with anyone.`;
         sampleSender = 'BP-ICICIB';
@@ -380,6 +383,20 @@ const SettingsScreen = () => {
                 <Text style={styles.emptyLastTxText}>No bank transactions detected yet</Text>
               )}
             </View>
+
+            <TouchableOpacity
+              onPress={() => navigation.navigate('SmsLog')}
+              activeOpacity={0.8}
+              style={[styles.viewSmsLogBtn, { backgroundColor: colors.primary }]}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Smartphone size={16} color="#ffffff" />
+                <Text style={styles.viewSmsLogBtnText}>
+                  View SMS Transaction Log ({totalDetected})
+                </Text>
+              </View>
+              <ChevronRight size={16} color="#ffffff" />
+            </TouchableOpacity>
           </Card>
 
           {/* Test & Simulation Buttons */}
@@ -408,6 +425,14 @@ const SettingsScreen = () => {
                 onPress={() => handleSimulateSampleSms('salary')}
               >
                 <Text style={[styles.simBtnText, { color: '#92400e' }]}>+Salary Credit</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.simBtn, { backgroundColor: '#fef2f2', borderColor: '#fecaca' }]}
+                disabled={simulating}
+                onPress={() => handleSimulateSampleSms('cc_bill')}
+              >
+                <Text style={[styles.simBtnText, { color: '#b91c1c' }]}>-₹15k CC Bill</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -816,6 +841,20 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontStyle: 'italic',
     marginTop: 2,
+  },
+  viewSmsLogBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    marginTop: 10,
+  },
+  viewSmsLogBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800',
   },
   simulationContainer: {
     gap: 6,

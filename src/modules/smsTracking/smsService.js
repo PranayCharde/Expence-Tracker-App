@@ -7,6 +7,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../config/firebase.js';
 import { safeGetItem, safeSetItem } from '../../utils/safeStorage.js';
 import { notifyTransaction } from '../../services/notificationService.js';
+import { navigate } from '../../navigation/navigationRef.js';
 import { isSmsDetectorAvailable, addSmsListener, startSmsListener, stopSmsListener, getRecentSms } from '../../../modules/expo-sms-detector/index.js';
 
 import { isFinancialSms } from './transactionDetector.js';
@@ -15,6 +16,8 @@ import { validateTransaction } from './transactionValidator.js';
 import { isDuplicate, markProcessed } from './duplicateChecker.js';
 import { categorizeTransaction } from './transactionCategorizer.js';
 import { checkSmsPermissions, isSmsTrackingEnabled } from './smsPermissions.js';
+
+export { checkSmsPermissions, isSmsTrackingEnabled };
 
 const LAST_DETECTED_TX_KEY = 'spendwise_last_sms_tx';
 const TOTAL_DETECTED_COUNT_KEY = 'spendwise_total_sms_detected_count';
@@ -121,15 +124,37 @@ export async function processRawSms(body, sender = '', timestamp = Date.now(), u
     // 7. Mark as processed in duplicate cache
     await markProcessed(user.uid, parsed);
 
+    const fullLoggedTx = {
+      id: docRef.id,
+      amount: txAmount,
+      category,
+      description,
+      merchant: parsed.merchant,
+      paymentMethod: parsed.paymentMethod,
+      date: parsed.date,
+      bank: parsed.bank,
+      accountMask: parsed.accountMask,
+      smsReferenceId: parsed.referenceId,
+      source: 'sms_auto_detected'
+    };
+
     // 8. Fire instant local push notification
     notifyTransaction({
       type: isExpense ? 'expense' : 'income',
       amount: parsed.amount,
       category: category,
-      paymentMethod: parsed.paymentMethod
+      paymentMethod: parsed.paymentMethod,
+      transaction: fullLoggedTx
     });
 
-    // 9. Update stats for UI
+    // 9. Navigate directly to the new LoggedTransaction page
+    try {
+      navigate('LoggedTransaction', { transaction: fullLoggedTx });
+    } catch (navErr) {
+      console.log('[SmsService] Navigation to new page deferred:', navErr);
+    }
+
+    // 10. Update stats for UI
     const currentStats = await getSmsTrackingStats();
     const newCount = currentStats.totalDetected + 1;
     const lastDetectedSummary = {
@@ -152,14 +177,7 @@ export async function processRawSms(body, sender = '', timestamp = Date.now(), u
 
     return {
       success: true,
-      transaction: {
-        id: docRef.id,
-        amount: txAmount,
-        category,
-        description,
-        paymentMethod: parsed.paymentMethod,
-        date: parsed.date
-      }
+      transaction: fullLoggedTx
     };
   } catch (err) {
     console.error('[SmsService] Failed to save auto-detected transaction:', err);
@@ -210,11 +228,19 @@ export async function startSmsTrackingService(user) {
  * Stop the SMS monitoring service
  */
 export function stopSmsTrackingService() {
-  if (activeSmsSubscription) {
-    activeSmsSubscription.remove();
-    activeSmsSubscription = null;
+  try {
+    if (activeSmsSubscription) {
+      if (typeof activeSmsSubscription.remove === 'function') {
+        activeSmsSubscription.remove();
+      }
+      activeSmsSubscription = null;
+    }
+    if (typeof stopSmsListener === 'function') {
+      stopSmsListener();
+    }
+  } catch (err) {
+    console.warn('[SmsService] Error during stop listener:', err);
   }
-  stopSmsListener();
   console.log('[SmsService] Automatic SMS tracking service stopped.');
 }
 

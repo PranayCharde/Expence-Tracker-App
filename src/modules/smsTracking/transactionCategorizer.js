@@ -4,6 +4,7 @@
  */
 
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '../../config/constants.js';
+import { isCreditCardBillPayment } from './smsParser.js';
 
 // Expense keyword mappings
 const EXPENSE_KEYWORD_RULES = [
@@ -32,8 +33,9 @@ const EXPENSE_KEYWORD_RULES = [
     ]
   },
   {
-    category: 'Bills & Utilities',
+    category: 'Utilities',
     keywords: [
+      'credit card bill', 'credit card payment', 'card bill', 'bill payment',
       'electricity', 'bescom', 'tatapower', 'airtel', 'jio', 'vi', 'vodafone',
       'broadband', 'act fibernet', 'bsnl', 'dth', 'tata play', 'gas', 'adani gas',
       'indane', 'water bill', 'recharge', 'utility', 'billdesk'
@@ -101,6 +103,11 @@ const INCOME_KEYWORD_RULES = [
 export function categorizeTransaction(parsedTransaction) {
   const { type, merchant = '', rawSender = '', rawBody = '' } = parsedTransaction;
   const targetText = `${merchant} ${rawSender} ${rawBody}`.toLowerCase();
+
+  // Special check for Credit Card Bill Payment -> categorized under 'Utilities'
+  if (isCreditCardBillPayment(rawBody) || /credit\s*card\s*bill/i.test(targetText)) {
+    return 'Utilities';
+  }
 
   // Special check for ATM cash withdrawal (both debit/credit messages from ATM)
   if (/\batm\b|cash\s*withdrawal/i.test(targetText)) {

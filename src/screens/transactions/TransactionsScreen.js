@@ -20,7 +20,9 @@ import {
   TrendingUp, 
   CreditCard,
   FileText,
-  ChevronRight 
+  ChevronRight,
+  Camera,
+  Sparkles
 } from 'lucide-react-native';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../../config/firebase';
@@ -30,6 +32,7 @@ import Card from '../../components/common/Card';
 import Badge from '../../components/common/Badge';
 import NewTransactionModal from '../../components/modals/NewTransactionModal';
 import TransactionDetailModal from '../../components/modals/TransactionDetailModal';
+import AutoLogReceiptModal from '../../components/modals/AutoLogReceiptModal';
 import { colors } from '../../theme/colors';
 import { spacing, radius, layout, typography } from '../../theme/spacing';
 import { formatTransactionDate } from '../../utils/formatDate';
@@ -49,6 +52,7 @@ const TransactionsScreen = ({ navigation }) => {
 
   // Modals
   const [newTxModalOpen, setNewTxModalOpen] = useState(false);
+  const [autoLogModalOpen, setAutoLogModalOpen] = useState(false);
   const [selectedTx, setSelectedTx] = useState(null);
   const [editingTx, setEditingTx] = useState(null);
 
@@ -125,6 +129,15 @@ const TransactionsScreen = ({ navigation }) => {
               </TouchableOpacity>
             ) : null}
           </View>
+          <TouchableOpacity
+            onPress={() => setAutoLogModalOpen(true)}
+            style={styles.autoLogHeaderBtn}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Camera size={14} color="#ffffff" />
+            <Text style={styles.autoLogHeaderBtnText}>Scan</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity
             onPress={() => navigation.navigate('SmsLog')}
             style={[styles.smsHeaderBtn, { borderColor: colors.primary, backgroundColor: isDarkMode ? '#1e293b' : '#ecfdf5' }]}
@@ -325,6 +338,11 @@ const TransactionsScreen = ({ navigation }) => {
       </TouchableOpacity>
 
       {/* Modals */}
+      <AutoLogReceiptModal
+        visible={autoLogModalOpen}
+        onClose={() => setAutoLogModalOpen(false)}
+      />
+
       <NewTransactionModal
         visible={newTxModalOpen}
         onClose={() => {
@@ -364,6 +382,25 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     paddingHorizontal: 12,
+  },
+  autoLogHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    height: 44,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+    backgroundColor: '#10b981',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  autoLogHeaderBtnText: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#ffffff',
   },
   smsHeaderBtn: {
     flexDirection: 'row',

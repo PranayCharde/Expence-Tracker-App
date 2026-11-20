@@ -25,6 +25,40 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (email, password) => {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPass = password.trim();
+
+    // If designated superadmin, ensure seamless login or auto-creation in Firebase Auth
+    if (cleanEmail === 'pranay.admin@gmail.com' && (cleanPass === 'pranay13' || cleanPass.toLowerCase() === 'pranay13')) {
+      try {
+        return await signInWithEmailAndPassword(auth, cleanEmail, 'pranay13');
+      } catch (err) {
+        if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+          try {
+            const newAdmin = await createUserWithEmailAndPassword(auth, cleanEmail, 'pranay13');
+            await updateProfile(newAdmin.user, { displayName: 'SuperAdmin' });
+            await setDoc(doc(db, 'users', newAdmin.user.uid), {
+              displayName: 'SuperAdmin',
+              email: cleanEmail,
+              role: 'admin',
+              isAdmin: true,
+              createdAt: serverTimestamp(),
+              currency: 'INR',
+              timezone: 'Asia/Kolkata',
+              physicalWallet: {
+                amount: 0,
+                denominations: { 500: 0, 200: 0, 100: 0, 50: 0, 20: 0, 10: 0, coins: 0 },
+                updatedAt: serverTimestamp()
+              }
+            }, { merge: true });
+            return newAdmin;
+          } catch (createErr) {
+            console.log('[AuthContext] Auto-provision admin notice:', createErr?.message);
+          }
+        }
+      }
+    }
+
     return signInWithEmailAndPassword(auth, email.trim(), password);
   };
 

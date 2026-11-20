@@ -29,6 +29,7 @@ import SettingsScreen from '../screens/settings/SettingsScreen';
 import LoggedTransactionScreen from '../screens/transactions/LoggedTransactionScreen';
 import SmsLogScreen from '../screens/transactions/SmsLogScreen';
 import MoreScreen from '../screens/more/MoreScreen';
+import AdminPanelScreen from '../screens/admin/AdminPanelScreen';
 import { navigationRef } from './navigationRef';
 import { colors } from '../theme/colors';
 
@@ -174,6 +175,13 @@ const AppStack = () => {
       <Stack.Screen 
         name="Settings" 
         component={SettingsScreen} 
+        options={{ 
+          animation: 'slide_from_right'
+        }} 
+      />
+      <Stack.Screen 
+        name="AdminPanel" 
+        component={AdminPanelScreen} 
         options={{ 
           animation: 'slide_from_right'
         }} 

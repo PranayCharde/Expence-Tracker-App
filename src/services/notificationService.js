@@ -1,6 +1,8 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { db } from '../config/firebase';
 
 // Configure how notifications appear when app is in the foreground
 Notifications.setNotificationHandler({
@@ -15,9 +17,14 @@ Notifications.setNotificationHandler({
 
 /**
  * Request notification permissions and create Android notification channel
+ * Optionally stores the FCM and Expo push tokens to Firestore for the user.
+ * @param {string|null} userId - Active Firebase User ID
+ * @returns {Promise<{ expoPushToken: string|null, fcmToken: string|null }>}
  */
-export const registerForPushNotificationsAsync = async () => {
-  let token = null;
+export const registerForPushNotificationsAsync = async (userId = null) => {
+  let expoPushToken = null;
+  let fcmToken = null;
+  let statusMessage = '';
 
   if (Platform.OS === 'android') {
     try {
@@ -39,7 +46,7 @@ export const registerForPushNotificationsAsync = async () => {
     }
   }
 
-  if (Device.isDevice || Platform.OS === 'web') {
+  try {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
 
@@ -49,20 +56,67 @@ export const registerForPushNotificationsAsync = async () => {
     }
 
     if (finalStatus !== 'granted') {
-      console.log('Notification permission not granted.');
-      return null;
+      console.log('[NotificationService] Notification permission not granted.');
+      return { 
+        success: false, 
+        expoPushToken: null, 
+        fcmToken: null, 
+        message: 'Notification permission denied by user.' 
+      };
     }
 
+    // 1. Get Expo Push Token (with EAS project ID)
     try {
-      const pushToken = await Notifications.getExpoPushTokenAsync();
-      token = pushToken.data;
+      const pushRes = await Notifications.getExpoPushTokenAsync({
+        projectId: 'de0647aa-500a-4ea5-8876-39aa96d17ae2'
+      });
+      expoPushToken = pushRes?.data || null;
     } catch (e) {
-      // Push tokens require an Expo project ID; local notifications work without it
-      console.log('Local notifications enabled (Remote push token optional):', e?.message);
+      console.log('[NotificationService] Expo Push Token notice:', e?.message);
     }
-  }
 
-  return token;
+    // 2. Get Native Firebase Cloud Messaging (FCM) Device Push Token (Android)
+    try {
+      if (Platform.OS === 'android') {
+        const nativeDeviceTokenRes = await Notifications.getDevicePushTokenAsync();
+        fcmToken = nativeDeviceTokenRes?.data || null;
+      }
+    } catch (fcmErr) {
+      console.log('[NotificationService] Native FCM Device Token notice:', fcmErr?.message);
+    }
+
+    // 3. Persist tokens in Firestore for targeted Firebase Cloud Messaging
+    if (userId && (expoPushToken || fcmToken)) {
+      try {
+        await setDoc(doc(db, 'users', userId), {
+          pushToken: expoPushToken || null,
+          fcmToken: fcmToken || null,
+          fcmPlatform: Platform.OS,
+          lastTokenUpdate: serverTimestamp()
+        }, { merge: true });
+        console.log('[NotificationService] FCM/Push tokens synced to Firestore for user:', userId);
+        statusMessage = 'Tokens synced to Firestore';
+      } catch (firestoreErr) {
+        console.warn('[NotificationService] Could not persist push token to Firestore:', firestoreErr?.message);
+        statusMessage = `Firestore sync error: ${firestoreErr.message}`;
+      }
+    }
+
+    return { 
+      success: true, 
+      expoPushToken, 
+      fcmToken, 
+      message: statusMessage || 'Push notifications registered' 
+    };
+  } catch (err) {
+    console.warn('[NotificationService] Registration error:', err?.message);
+    return { 
+      success: false, 
+      expoPushToken: null, 
+      fcmToken: null, 
+      message: err?.message || 'Error registering for push notifications' 
+    };
+  }
 };
 
 /**

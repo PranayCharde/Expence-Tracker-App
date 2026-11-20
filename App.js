@@ -46,6 +46,9 @@ const RootContent = () => {
 
   useEffect(() => {
     if (user) {
+      // Sync user FCM/Push token to Firestore for remote push notifications
+      registerForPushNotificationsAsync(user.uid);
+
       if (Platform.OS === 'android') {
         checkSmsPermissions().then(hasPerm => {
           if (!hasPerm) {

@@ -22,6 +22,7 @@ import {
   Sparkles,
   User,
   Smartphone,
+  Camera,
   PieChart as PieChartIcon
 } from 'lucide-react-native';
 import { collection, doc, query, orderBy, onSnapshot } from 'firebase/firestore';
@@ -34,6 +35,7 @@ import Badge from '../../components/common/Badge';
 import NewTransactionModal from '../../components/modals/NewTransactionModal';
 import SpendCashModal from '../../components/modals/SpendCashModal';
 import TransactionDetailModal from '../../components/modals/TransactionDetailModal';
+import AutoLogReceiptModal from '../../components/modals/AutoLogReceiptModal';
 import { colors } from '../../theme/colors';
 import { spacing, radius, layout, typography } from '../../theme/spacing';
 import { formatTransactionDate } from '../../utils/formatDate';
@@ -49,6 +51,7 @@ const DashboardScreen = ({ navigation }) => {
 
   // Modals
   const [newTxModalOpen, setNewTxModalOpen] = useState(false);
+  const [autoLogModalOpen, setAutoLogModalOpen] = useState(false);
   const [newTxType, setNewTxType] = useState('expense');
   const [spendCashModalOpen, setSpendCashModalOpen] = useState(false);
   const [spendCashMode, setSpendCashMode] = useState('expense');
@@ -255,6 +258,36 @@ const DashboardScreen = ({ navigation }) => {
           </View>
         </TouchableOpacity>
 
+        {/* Instant Auto-Log Receipt Card (100% Automated) */}
+        <TouchableOpacity 
+          activeOpacity={0.85}
+          onPress={() => setAutoLogModalOpen(true)}
+          style={[styles.autoLogHeroCard, { backgroundColor: isDarkMode ? '#064e3b' : '#ecfdf5', borderColor: '#a7f3d0' }]}
+        >
+          <View style={styles.autoLogLeft}>
+            <View style={styles.autoLogIconBox}>
+              <Camera size={20} color="#ffffff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={[styles.autoLogTitle, { color: isDarkMode ? '#f8fafc' : '#064e3b' }]}>
+                  Auto-Log Receipt
+                </Text>
+                <View style={styles.autoLogBadge}>
+                  <Sparkles size={9} color="#047857" />
+                  <Text style={styles.autoLogBadgeText}>AI 100%</Text>
+                </View>
+              </View>
+              <Text style={[styles.autoLogSubtitle, { color: isDarkMode ? '#a7f3d0' : '#047857' }]}>
+                Snap a bill — zero manual typing needed
+              </Text>
+            </View>
+          </View>
+          <View style={styles.autoLogRightBtn}>
+            <Text style={styles.autoLogRightBtnText}>Scan</Text>
+          </View>
+        </TouchableOpacity>
+
         {/* Quick Action Grid */}
         <View style={styles.quickActionsRow}>
           <TouchableOpacity 
@@ -377,6 +410,11 @@ const DashboardScreen = ({ navigation }) => {
       </ScrollView>
 
       {/* Modals */}
+      <AutoLogReceiptModal
+        visible={autoLogModalOpen}
+        onClose={() => setAutoLogModalOpen(false)}
+      />
+
       <NewTransactionModal
         visible={newTxModalOpen}
         onClose={() => {
@@ -607,6 +645,74 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  autoLogHeroCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 14,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  autoLogLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+  },
+  autoLogIconBox: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: '#10b981',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  autoLogTitle: {
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  autoLogBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#dcfce7',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+  },
+  autoLogBadgeText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#047857',
+  },
+  autoLogSubtitle: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  autoLogRightBtn: {
+    backgroundColor: '#10b981',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  autoLogRightBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '900',
   },
   quickActionsRow: {
     flexDirection: 'row',

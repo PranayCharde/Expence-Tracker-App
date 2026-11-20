@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   User, Moon, Sun, Globe, Clock, LogOut, ShieldCheck, ChevronRight, 
   Sparkles, Bell, BellRing, MessageSquare, CheckCircle2, AlertCircle, 
-  PlayCircle, Smartphone, ArrowDownLeft, ArrowUpRight 
+  PlayCircle, Smartphone, ArrowDownLeft, ArrowUpRight, Cloud, RefreshCw, Share2
 } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
@@ -13,7 +13,12 @@ import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import { colors } from '../../theme/colors';
 import { spacing, radius, layout, typography } from '../../theme/spacing';
-import { sendInstantNotification, scheduleDailyWalletReminder, cancelDailyReminder } from '../../services/notificationService';
+import { 
+  sendInstantNotification, 
+  scheduleDailyWalletReminder, 
+  cancelDailyReminder,
+  registerForPushNotificationsAsync 
+} from '../../services/notificationService';
 import { 
   checkSmsPermissions, 
   requestSmsPermissions, 
@@ -41,6 +46,8 @@ const SettingsScreen = ({ navigation }) => {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [dailyReminderEnabled, setDailyReminderEnabled] = useState(true);
   const [testingNotif, setTestingNotif] = useState(false);
+  const [syncingPushToken, setSyncingPushToken] = useState(false);
+  const [fcmDetails, setFcmDetails] = useState(null);
 
   // SMS Tracking State
   const [smsTrackingActive, setSmsTrackingActive] = useState(false);
@@ -212,6 +219,37 @@ const SettingsScreen = ({ navigation }) => {
       Alert.alert('Error', 'Could not send test notification.');
     } finally {
       setTestingNotif(false);
+    }
+  };
+
+  const handleSyncPushToken = async () => {
+    if (!user) {
+      Alert.alert('Authentication Required', 'Please log in to register and sync your FCM push token.');
+      return;
+    }
+
+    setSyncingPushToken(true);
+    try {
+      const res = await registerForPushNotificationsAsync(user.uid);
+      setFcmDetails(res);
+      if (res?.expoPushToken || res?.fcmToken) {
+        Alert.alert(
+          '✅ Push Token Registered & Synced!',
+          `Device notification credentials saved to Firestore under users/${user.uid}.\n\n` +
+          `• Expo Token: ${res.expoPushToken ? res.expoPushToken.substring(0, 28) + '...' : 'Available via build'}\n` +
+          `• FCM Token: ${res.fcmToken ? res.fcmToken.substring(0, 28) + '...' : 'Active'}\n\n` +
+          `Refresh your Firebase Console Firestore tab to see the updated document!`
+        );
+      } else {
+        Alert.alert(
+          'Token Status',
+          res?.message || 'Could not retrieve device token. Ensure notification permissions are allowed in Android Settings.'
+        );
+      }
+    } catch (e) {
+      Alert.alert('Sync Error', e.message);
+    } finally {
+      setSyncingPushToken(false);
     }
   };
 
@@ -594,6 +632,40 @@ const SettingsScreen = ({ navigation }) => {
               {testingNotif ? 'Sending Notification...' : 'Send Test Notification'}
             </Text>
           </TouchableOpacity>
+
+          {/* Firebase Cloud Messaging (FCM) Sync */}
+          <Card style={[styles.settingItemCardColumn, { marginTop: 10 }]}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.iconBox, { backgroundColor: '#fef3c7' }]}>
+                <Cloud size={18} color="#d97706" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.settingTitle, { color: themeColors.textPrimary }]}>Firebase Cloud Messaging</Text>
+                <Text style={styles.settingDesc}>Sync device push token to Firestore for remote alerts</Text>
+              </View>
+            </View>
+
+            {fcmDetails?.expoPushToken ? (
+              <View style={[styles.tokenBox, { backgroundColor: isDarkMode ? '#1e293b' : '#f8fafc', borderColor: themeColors.border }]}>
+                <Text style={[styles.tokenBoxLabel, { color: themeColors.textSecondary }]}>Token Registered:</Text>
+                <Text numberOfLines={1} ellipsizeMode="middle" style={[styles.tokenBoxValue, { color: colors.primary }]}>
+                  {fcmDetails.expoPushToken}
+                </Text>
+              </View>
+            ) : null}
+
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={handleSyncPushToken}
+              disabled={syncingPushToken}
+              style={[styles.syncFcmBtn, { backgroundColor: colors.primary }]}
+            >
+              <RefreshCw size={14} color="#ffffff" style={syncingPushToken ? { opacity: 0.5 } : null} />
+              <Text style={styles.syncFcmBtnText}>
+                {syncingPushToken ? 'Syncing Token to Firestore...' : 'Sync Push Token with Firebase'}
+              </Text>
+            </TouchableOpacity>
+          </Card>
         </View>
 
         {/* Sign Out Button */}
@@ -922,6 +994,36 @@ const styles = StyleSheet.create({
   testNotifBtnText: {
     fontSize: 13,
     fontWeight: '800',
+  },
+  tokenBox: {
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 10,
+  },
+  tokenBoxLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  tokenBoxValue: {
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  syncFcmBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    borderRadius: 14,
+    marginTop: 10,
+  },
+  syncFcmBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
   },
   syncInboxBtn: {
     flexDirection: 'row',

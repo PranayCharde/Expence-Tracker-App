@@ -42,7 +42,8 @@ import {
   Briefcase,
   DollarSign,
   Sparkles,
-  Check
+  Check,
+  ScanLine
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { collection, addDoc, updateDoc, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
@@ -51,6 +52,8 @@ import { db, storage } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
 import { notifyTransaction } from '../../services/notificationService';
+import { scanReceiptImage } from '../../services/receiptScannerService';
+import { uploadReceiptToCloudinary } from '../../services/cloudinaryService';
 import { navigate } from '../../navigation/navigationRef';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, PAYMENT_METHODS, INDIAN_DENOMINATIONS } from '../../config/constants';
 import { getTodayDateString, getYesterdayDateString, formatTransactionDate } from '../../utils/formatDate';
@@ -130,6 +133,8 @@ const NewTransactionModal = ({
   const [description, setDescription] = useState('');
   const [dateStr, setDateStr] = useState(getTodayDateString());
   const [receiptImage, setReceiptImage] = useState(null);
+  const [scanningReceipt, setScanningReceipt] = useState(false);
+  const [receiptScanResult, setReceiptScanResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
   // Cash denomination notes state
@@ -198,6 +203,8 @@ const NewTransactionModal = ({
         setDescription('');
         setDateStr(todayStr);
         setReceiptImage(null);
+        setReceiptScanResult(null);
+        setScanningReceipt(false);
       }
       setLoading(false);
 
@@ -305,6 +312,53 @@ const NewTransactionModal = ({
     return walletBalance + parsed;
   }, [type, walletBalance, amount]);
 
+  const processReceiptImage = async (asset) => {
+    if (!asset) return;
+    setReceiptImage(asset.uri);
+    setReceiptScanResult(null);
+
+    if (asset.base64) {
+      setScanningReceipt(true);
+      try {
+        const scanRes = await scanReceiptImage(asset.base64);
+        if (scanRes.success && scanRes.data) {
+          const d = scanRes.data;
+          if (d.amount) {
+            setAmount(d.amount.toString());
+            setCashInputMode('direct');
+          }
+          if (d.merchant) {
+            setDescription(d.merchant);
+          }
+          if (d.category) {
+            const allCats = type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+            if (allCats.includes(d.category)) {
+              setCategory(d.category);
+              setCustomCategory('');
+            }
+          }
+          if (d.date) {
+            setDateStr(d.date);
+          }
+          if (d.paymentMethod) {
+            setPaymentMethod(d.paymentMethod);
+          }
+
+          setReceiptScanResult({
+            amount: d.amount,
+            merchant: d.merchant,
+            category: d.category,
+            date: d.date
+          });
+        }
+      } catch (err) {
+        console.warn('Receipt scan warning:', err);
+      } finally {
+        setScanningReceipt(false);
+      }
+    }
+  };
+
   const pickImage = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permissionResult.granted === false) {
@@ -315,11 +369,12 @@ const NewTransactionModal = ({
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsEditing: true,
-      quality: 0.7,
+      quality: 0.5,
+      base64: true,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      setReceiptImage(result.assets[0].uri);
+      await processReceiptImage(result.assets[0]);
     }
   };
 
@@ -332,11 +387,12 @@ const NewTransactionModal = ({
 
     const result = await ImagePicker.launchCameraAsync({
       allowsEditing: true,
-      quality: 0.7,
+      quality: 0.5,
+      base64: true,
     });
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
-      setReceiptImage(result.assets[0].uri);
+      await processReceiptImage(result.assets[0]);
     }
   };
 
@@ -357,16 +413,20 @@ const NewTransactionModal = ({
     setLoading(true);
     try {
       let receiptUrl = receiptImage;
-      // If a local image was picked/taken, upload it
+      // If a local image was picked/taken, upload it to Cloudinary
       if (receiptImage && (receiptImage.startsWith('file:') || receiptImage.startsWith('content:'))) {
         try {
-          const response = await fetch(receiptImage);
-          const blob = await response.blob();
-          const fileRef = ref(storage, `users/${user.uid}/receipts/${Date.now()}_receipt.jpg`);
-          await uploadBytes(fileRef, blob);
-          receiptUrl = await getDownloadURL(fileRef);
+          const cloudRes = await uploadReceiptToCloudinary(receiptImage);
+          if (cloudRes.success && cloudRes.url) {
+            receiptUrl = cloudRes.url;
+            console.log('[NewTx Mobile] Stored receipt in Cloudinary:', receiptUrl);
+          } else {
+            console.warn('[NewTx Mobile] Cloudinary notice, saving local URI:', cloudRes.error);
+            receiptUrl = receiptImage;
+          }
         } catch (uploadErr) {
-          console.error("Receipt upload error:", uploadErr);
+          console.warn('[NewTx Mobile] Cloudinary notice (saving local reference):', uploadErr);
+          receiptUrl = receiptImage;
         }
       }
 
@@ -1046,11 +1106,36 @@ const NewTransactionModal = ({
 
             {/* Receipt Image Attachment */}
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, { color: themeColors.textSecondary }]}>Attach Receipt (Optional)</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={[styles.label, { color: themeColors.textSecondary }]}>Receipt / Invoice (Optional)</Text>
+                <View style={styles.aiBadge}>
+                  <Sparkles size={11} color="#059669" />
+                  <Text style={styles.aiBadgeText}>AI Auto-Read</Text>
+                </View>
+              </View>
+
+              {scanningReceipt && (
+                <View style={[styles.scanStatusBox, { backgroundColor: isDarkMode ? '#1e293b' : '#ecfdf5', borderColor: '#a7f3d0' }]}>
+                  <ActivityIndicator size="small" color="#059669" />
+                  <Text style={[styles.scanStatusText, { color: isDarkMode ? '#34d399' : '#065f46' }]}>
+                    Reading receipt & auto-filling data...
+                  </Text>
+                </View>
+              )}
+
+              {receiptScanResult && !scanningReceipt && (
+                <View style={[styles.scanSuccessBox, { backgroundColor: isDarkMode ? '#064e3b' : '#f0fdf4', borderColor: '#bbf7d0' }]}>
+                  <Sparkles size={14} color="#059669" />
+                  <Text style={[styles.scanSuccessText, { color: isDarkMode ? '#6ee7b7' : '#15803d' }]}>
+                    Auto-filled: {receiptScanResult.amount ? `₹${receiptScanResult.amount}` : ''} {receiptScanResult.merchant ? `• ${receiptScanResult.merchant}` : ''} ({receiptScanResult.category})
+                  </Text>
+                </View>
+              )}
+
               {receiptImage ? (
                 <View style={styles.imagePreviewBox}>
                   <Image source={{ uri: receiptImage }} style={styles.previewImage} />
-                  <TouchableOpacity onPress={() => setReceiptImage(null)} style={styles.removeImageBtn}>
+                  <TouchableOpacity onPress={() => { setReceiptImage(null); setReceiptScanResult(null); }} style={styles.removeImageBtn}>
                     <Trash2 size={16} color="#ffffff" />
                   </TouchableOpacity>
                 </View>
@@ -1058,11 +1143,11 @@ const NewTransactionModal = ({
                 <View style={styles.imageActionRow}>
                   <TouchableOpacity onPress={takePhoto} style={[styles.imageBtn, { borderColor: themeColors.border }]}>
                     <Camera size={16} color={colors.primary} />
-                    <Text style={[styles.imageBtnText, { color: colors.primary }]}>Camera</Text>
+                    <Text style={[styles.imageBtnText, { color: colors.primary }]}>Scan with Camera</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={pickImage} style={[styles.imageBtn, { borderColor: themeColors.border }]}>
                     <ImageIcon size={16} color={colors.primary} />
-                    <Text style={[styles.imageBtnText, { color: colors.primary }]}>Gallery</Text>
+                    <Text style={[styles.imageBtnText, { color: colors.primary }]}>Upload from Gallery</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -1396,6 +1481,47 @@ const styles = StyleSheet.create({
   },
   imageBtnText: {
     fontSize: 13,
+    fontWeight: '800',
+  },
+  aiBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ecfdf5',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+  },
+  aiBadgeText: {
+    color: '#065f46',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  scanStatusBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginVertical: 4,
+  },
+  scanStatusText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  scanSuccessBox: {
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 2,
+    marginVertical: 4,
+  },
+  scanSuccessText: {
+    fontSize: 12,
     fontWeight: '800',
   },
   imagePreviewBox: {

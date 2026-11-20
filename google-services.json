@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "743686985267",
+    "project_id": "spendwise-tracker-pranay-13",
+    "storage_bucket": "spendwise-tracker-pranay-13.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:743686985267:android:a79d46fa1aa54a4a0f3546",
+        "android_client_info": {
+          "package_name": "com.pranay.spendwise"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "743686985267-o22kssii4bqrr5i85lg21nqu3dhudvhh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBOVqPsKGgfz6ZL2RFOqA8aYGR2_VFvhNo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "743686985267-o22kssii4bqrr5i85lg21nqu3dhudvhh.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

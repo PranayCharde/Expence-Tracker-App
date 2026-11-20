@@ -24,7 +24,8 @@ import {
   RefreshCw, 
   FileText,
   SlidersHorizontal,
-  Sparkles
+  Sparkles,
+  ShieldAlert
 } from 'lucide-react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useSettings } from '../../context/SettingsContext';
@@ -32,6 +33,7 @@ import Card from '../../components/common/Card';
 import NewTransactionModal from '../../components/modals/NewTransactionModal';
 import SpendCashModal from '../../components/modals/SpendCashModal';
 import { syncRecentSms } from '../../modules/smsTracking';
+import { isAuthorizedAdminEmail, getAdminSessionStatus } from '../../services/adminService';
 import { colors } from '../../theme/colors';
 import { spacing, radius, layout, typography } from '../../theme/spacing';
 
@@ -42,6 +44,8 @@ const MoreScreen = ({ navigation }) => {
   const [newTxModalOpen, setNewTxModalOpen] = useState(false);
   const [spendCashModalOpen, setSpendCashModalOpen] = useState(false);
   const [syncingInbox, setSyncingInbox] = useState(false);
+
+  const isSuperAdmin = isAuthorizedAdminEmail(user?.email) || getAdminSessionStatus().isUnlocked;
 
   const handleLogout = () => {
     Alert.alert(
@@ -106,6 +110,19 @@ const MoreScreen = ({ navigation }) => {
       color: '#f59e0b',
       bg: '#fef3c7',
       onPress: () => navigation.navigate('Cash')
+    },
+    {
+      id: 'adminPanel',
+      title: 'Admin Control Center',
+      subtitle: isSuperAdmin 
+        ? 'Broadcast notifications & full database access' 
+        : 'Restricted • Admin Email & Password Required',
+      icon: ShieldAlert,
+      color: '#7c3aed',
+      bg: '#f5f3ff',
+      badge: isSuperAdmin ? 'ADMIN' : 'RESTRICTED',
+      badgeBg: isSuperAdmin ? '#7c3aed' : '#64748b',
+      onPress: () => navigation.navigate('AdminPanel')
     },
     {
       id: 'settings',
@@ -216,9 +233,16 @@ const MoreScreen = ({ navigation }) => {
                 </View>
 
                 <View style={styles.hubTextCol}>
-                  <Text style={[styles.hubRowTitle, { color: themeColors.textPrimary }]}>
-                    {item.title}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={[styles.hubRowTitle, { color: themeColors.textPrimary }]}>
+                      {item.title}
+                    </Text>
+                    {item.badge ? (
+                      <View style={[styles.badgePill, { backgroundColor: item.badgeBg || '#7c3aed' }]}>
+                        <Text style={styles.badgePillText}>{item.badge}</Text>
+                      </View>
+                    ) : null}
+                  </View>
                   <Text style={[styles.hubRowSubtitle, { color: themeColors.textMuted }]}>
                     {item.subtitle}
                   </Text>
@@ -400,6 +424,17 @@ const styles = StyleSheet.create({
   hubRowTitle: {
     fontSize: 14,
     fontWeight: '800',
+  },
+  badgePill: {
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+  },
+  badgePillText: {
+    color: '#ffffff',
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
   hubRowSubtitle: {
     fontSize: 11,
